@@ -169,7 +169,8 @@ int freerdp_client_settings_parse_command_line(rdpSettings* settings, int argc, 
 	if (!argv)
 		return -1;
 
-	status = freerdp_client_settings_parse_command_line_arguments(settings, argc, argv);
+	status = cameyo_settings_parse_command_line_arguments(settings, argc, argv);
+	//status = freerdp_client_settings_parse_command_line_arguments(settings, argc, argv);
 
 	if (settings->ConnectionFile)
 	{

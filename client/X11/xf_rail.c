@@ -72,6 +72,7 @@ void xf_rail_enable_remoteapp_mode(xfContext* xfc)
 
 void xf_rail_disable_remoteapp_mode(xfContext* xfc)
 {
+	return;   // cameyo: this disables the initial Windows "Logging..." flickering window
 	if (xfc->remote_app)
 	{
 		xfc->remote_app = FALSE;

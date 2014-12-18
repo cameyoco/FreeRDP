@@ -42,9 +42,12 @@
 #include <freerdp/log.h>
 #define TAG CLIENT_TAG("common.cmdline")
 
+#include <unistd.h>
+//#include "jsmn.h"
+
 COMMAND_LINE_ARGUMENT_A args[] =
 {
-	{ "v", COMMAND_LINE_VALUE_REQUIRED, "<server>[:port]", NULL, NULL, -1, NULL, "Server hostname" },
+//cameyo:	{ "v", COMMAND_LINE_VALUE_REQUIRED, "<server>[:port]", NULL, NULL, -1, NULL, "Server hostname" },
 	{ "port", COMMAND_LINE_VALUE_REQUIRED, "<number>", NULL, NULL, -1, NULL, "Server port" },
 	{ "w", COMMAND_LINE_VALUE_REQUIRED, "<width>", "1024", NULL, -1, NULL, "Width" },
 	{ "h", COMMAND_LINE_VALUE_REQUIRED, "<height>", "768", NULL, -1, NULL, "Height" },
@@ -2199,4 +2202,155 @@ int freerdp_client_load_addins(rdpChannels* channels, rdpSettings* settings)
 	}
 
 	return 1;
+}
+
+char* parse_json_token(char* json, char* item)
+{
+	char* p = strstr(json, item);
+	if (p == NULL)
+		return NULL;
+	p += strlen(item);
+	while (*p && *p == ' ') p++;
+	while (*p && *p == '\"') p++;
+	char* start = p;
+	while (*p && *p != '\"') p++;
+	return strndup(start, p - start);
+}
+
+int cameyo_packager_get(rdpSettings* settings, char* serverHost, int serverPort, int https, char* op, char* username, char* password, char* pkgId)
+{
+	char url[1024];
+	FILE* fp;
+	
+	// https://serverHost:serverPort/packager.aspx?op=RdpPlay&user=[username]&pass=[password]&pkgId=[PkgId]&client=[Play.OS]
+	sprintf(url, "wget -O - -o /dev/null '%s://%s:%d/packager.aspx?op=%s&user=%s&pass=%s&pkgId=%s&client=Play.Linux'", 
+		(https ? "https" : "http"), serverHost, serverPort, op, username ? username : "", password ? password : "", pkgId);
+	printf("%s\n", url);
+	fp = popen(url, "r");
+	if (fp == NULL)
+	{
+		fprintf(stderr, "Cannot launch wget: %s\n", url);
+		return 1;
+	}
+	else
+	{
+		char* buf = (char*)malloc(2048);
+		char *hostname = NULL, *username = NULL, *password = NULL, *port = NULL, *remoteapp = NULL;
+		while (fgets(buf, 2048 - 1, fp) != NULL)
+		{
+			hostname = parse_json_token(buf, "\"hostname\":");
+			username = parse_json_token(buf, "\"username\":");
+			password = parse_json_token(buf, "\"password\":");
+			port = parse_json_token(buf, "\"port\":");
+			remoteapp = parse_json_token(buf, "\"remote-app\":");
+		}
+		close(fp);
+		free(buf);
+		if (!hostname || !username || !password || !port || !remoteapp)
+		{
+			fprintf(stderr, "Incorrect server reply from URL: %s\n", url);
+			return 1;
+		}
+		
+		// Basics
+		settings->ServerPort = atoi(port);
+		settings->ServerHostname = hostname;
+		settings->Username = username;
+		settings->Password = password;
+
+		// RemoteApp
+		settings->RemoteApplicationProgram = remoteapp;
+		settings->RemoteApplicationMode = TRUE;
+		settings->RemoteAppLanguageBarSupported = TRUE;
+		settings->Workarea = TRUE;
+		settings->DisableWallpaper = TRUE;
+		settings->DisableFullWindowDrag = TRUE;
+	}
+	return 0;
+}
+
+int cameyo_settings_parse_command_line_arguments(rdpSettings* settings, int argc, char** argv)
+{
+	int opt;
+	while ((opt = getopt(argc, argv, "u:p:s:")) != -1)
+	{
+		switch (opt)
+		{
+		case 'u':
+			break;
+		case 'p':
+			break;
+		case 's':
+			break;
+		default:
+			fprintf(stderr, "Usage: %s [-u] [-p] [-s] pkgId\n", argv[0]);
+			exit(1);
+		}
+	}
+
+	// Last argument
+	if (optind != argc - 1)
+	{
+		fprintf(stderr, "Usage: %s [-u] [-p] [-s] pkgId\n", argv[0]);
+		exit(1);	
+	}
+
+	char* pkgId = argv[optind];
+	freerdp_client_print_version();
+	cameyo_packager_get(settings, "online.cameyo.com", 443, TRUE, "RdpPlay", NULL, NULL, pkgId);
+	
+	// Certificate
+	//settings->CertificateName = "winrap";//TBD
+	settings->IgnoreCertificate = TRUE; //TBD
+
+	// Clipboard
+	settings->RedirectClipboard = TRUE;
+
+	// Audio
+	settings->AudioPlayback = TRUE;
+
+	// Certificate
+	//settings->CertificateName = _strdup(arg->Value);
+	settings->IgnoreCertificate = TRUE;
+
+	/*// Gateway
+	settings->GatewayPort = atoi(&p[1]);
+	settings->GatewayHostname = (char*)malloc(length + 1);
+	settings->GatewayEnabled = TRUE;
+	settings->GatewayUseSameCredentials = TRUE;*/
+
+	// gfx
+	settings->SupportGraphicsPipeline = TRUE;
+
+	// rfx
+	settings->RemoteFxCodec = TRUE;
+	settings->FastPathOutput = TRUE;
+	settings->ColorDepth = 32;
+	settings->LargePointerFlag = TRUE;
+	settings->FrameMarkerCommandEnabled = TRUE;
+
+	/*// rfx-mode
+	if (strcmp(arg->Value, "video") == 0)
+		settings->RemoteFxCodecMode = 0x00;
+	else if (strcmp(arg->Value, "image") == 0)
+		settings->RemoteFxCodecMode = 0x02;*/
+
+	/*// Mouse motion
+	settings->MouseMotion = arg->Value ? TRUE : FALSE;
+
+	// Auto reconnect
+	settings->AutoReconnectionEnabled = arg->Value ? TRUE : FALSE;*/
+
+	// Security mode: standard RDP
+	settings->RdpSecurity = TRUE;
+	settings->TlsSecurity = FALSE;
+	settings->NlaSecurity = FALSE;
+	settings->ExtSecurity = FALSE;
+	//settings->DisableEncryption = TRUE;
+	settings->EncryptionMethods = ENCRYPTION_METHOD_40BIT | ENCRYPTION_METHOD_56BIT | ENCRYPTION_METHOD_128BIT | ENCRYPTION_METHOD_FIPS;
+	settings->EncryptionLevel = ENCRYPTION_LEVEL_CLIENT_COMPATIBLE;
+
+	freerdp_performance_flags_make(settings);
+
+	return 0;
 }
