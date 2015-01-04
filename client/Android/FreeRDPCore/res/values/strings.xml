@@ -167,6 +167,7 @@
     <string name="title_home">aFreeRDP - FreeRDP for Android</string>
     <string name="title_create_shortcut">RDP Connections</string>
     <string name="title_help">Help</string>
+    <string name="title_cameyoplayer">Cameyo Player</string>
     <string name="title_about">About</string>
     <!-- Error message strings -->
     <string name="error_bookmark_incomplete_title">Cancel without saving?</string>
@@ -196,4 +197,33 @@
     <string name="dlg_msg_clear_cert_cache">Are you sure you want to delete all your cached Certificates?</string>
     <string name="debug_level">Debug Level</string>
     <string name="settings_debug">Debug Settings</string>
+    
+    <string name="confirmpassword_string">Confirm password</string>
+    <string name="subscribenewsupdates_string">Subscribe to news &amp; updates</string>
+    <string name="cameyo_player_string">Cameyo Player</string>
+    <string name="enter_your_email_string">Enter your email address</string>
+    <string name="password_string">Password</string>
+	<string name="login_string">Log in</string>
+	<string name="register_string">Register</string>
+    <string name="forgotyourpassword_string">Forgot your password?</string>
+    <string name="registeranaccount_string">Register an account</string>
+    <string name="loadingprogress">Loading...</string>
+    <string name="alreadyhaveaccount_string">Already have an account?</string>
+    
+    <string name="alertmsg_title">Alert</string>
+    <string name="alert_blankdata_exists">Please fill all the information</string>
+    <string name="alert_purchasesuccess">Your membership has been purchased successfully.</string>
+    <string name="alert_acceptterms_exists">Please Accept our terms and conditions to continue</string>
+    <string name="alert_invalid_email">Please Enter Valid Email Address</string>
+    <string name="alert_useralreadyExists_msg">User already exist</string>    
+    <string name="alert_blankemail_exists">Please fill Email Address</string>
+    <string name="alert_forgetpassword_sent">Forgotten password was sent via mail</string>
+    <string name="alert_emailaddress_exists_sent">Email address is not existing</string>
+    <string name="alert_blank_password">Please enter password</string>
+    <string name="notmatch_password">Password does not match</string>
+    <string name="alert_wrongusernameorpassword">Invalid username or password</string>
+    <string name="alert_submitsuccess_exists">Successfully submitted</string>
+    <string name="noapp_string">No apps</string>
+    <string name="alert_signupinvalid">Email address is not valid or already exists</string>
+    
 </resources>

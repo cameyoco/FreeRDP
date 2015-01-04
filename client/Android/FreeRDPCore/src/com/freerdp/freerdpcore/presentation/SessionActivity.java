@@ -21,6 +21,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
@@ -55,7 +56,13 @@ import com.freerdp.freerdpcore.application.SessionState;
 import com.freerdp.freerdpcore.domain.BookmarkBase;
 import com.freerdp.freerdpcore.domain.ConnectionReference;
 import com.freerdp.freerdpcore.domain.ManualBookmark;
+import com.freerdp.freerdpcore.manager.AppPreferences;
+import com.freerdp.freerdpcore.manager.Server;
+import com.freerdp.freerdpcore.model.AppModel;
+import com.freerdp.freerdpcore.model.ConnectionModel;
 import com.freerdp.freerdpcore.services.LibFreeRDP;
+import com.freerdp.freerdpcore.task.BaseTask;
+import com.freerdp.freerdpcore.task.TaskListener;
 import com.freerdp.freerdpcore.utils.ClipboardManagerProxy;
 import com.freerdp.freerdpcore.utils.KeyboardMapper;
 import com.freerdp.freerdpcore.utils.Mouse;
@@ -65,7 +72,11 @@ public class SessionActivity extends ActionBarActivity implements
 		ScrollView2D.ScrollView2DListener,
 		KeyboardMapper.KeyProcessingListener, SessionView.SessionViewListener,
 		TouchPointerView.TouchPointerListener,
-		ClipboardManagerProxy.OnClipboardChangedListener {
+		ClipboardManagerProxy.OnClipboardChangedListener, TaskListener {
+	
+	private int retryCount;
+	private static final int retryInterval = 5000;
+	
 	private class UIHandler extends Handler {
 
 		public static final int REFRESH_SESSIONVIEW = 1;
@@ -232,31 +243,12 @@ public class SessionActivity extends ActionBarActivity implements
 		private void OnConnectionSuccess(Context context) {
 			Log.v(TAG, "OnConnectionSuccess");
 
-			// bind session
-			bindSession();
-
-			if (progressDialog != null) {
-				progressDialog.dismiss();
-				progressDialog = null;
-			}
-
-			// add hostname to history if quick connect was used
-			Bundle bundle = getIntent().getExtras();
-			if (bundle != null
-					&& bundle.containsKey(PARAM_CONNECTION_REFERENCE)) {
-				if (ConnectionReference.isHostnameReference(bundle
-						.getString(PARAM_CONNECTION_REFERENCE))) {
-					assert session.getBookmark().getType() == BookmarkBase.TYPE_MANUAL;
-					String item = session.getBookmark().<ManualBookmark> get()
-							.getHostname();
-					if (!GlobalApp.getQuickConnectHistoryGateway()
-							.historyItemExists(item))
-						GlobalApp.getQuickConnectHistoryGateway()
-								.addHistoryItem(item);
-				}
-			}
+			retryCount = 0;
+			BaseTask signupTask = new BaseTask(TASK_CHECKAVAILAVILITY);
+			signupTask.setListener(SessionActivity.this);
+			signupTask.execute();
 		}
-
+		
 		private void OnConnectionFailure(Context context) {
 			Log.v(TAG, "OnConnectionFailure");
 
@@ -296,6 +288,7 @@ public class SessionActivity extends ActionBarActivity implements
 	}
 
 	public static final String PARAM_CONNECTION_REFERENCE = "conRef";
+	public static final String PARAM_CONNECTION_CAMEYO = "cameyoRef";
 	public static final String PARAM_INSTANCE = "instance";
 
 	private static final float ZOOMING_STEP = 0.5f;
@@ -434,6 +427,13 @@ public class SessionActivity extends ActionBarActivity implements
 		if (GlobalSettings.getHideStatusBar()) {
 			getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
 					WindowManager.LayoutParams.FLAG_FULLSCREEN);
+		}
+		
+		boolean tabletSize = getResources().getBoolean(R.bool.isTablet);
+		if (tabletSize) {
+			setRequestedOrientation (ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+		} else {
+			setRequestedOrientation (ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 		}
 
 		this.setContentView(R.layout.session);
@@ -640,6 +640,18 @@ public class SessionActivity extends ActionBarActivity implements
 				connect(bookmark);
 			else
 				closeSessionActivity(RESULT_CANCELED);
+		} else if (bundle.containsKey(PARAM_CONNECTION_CAMEYO)) {
+			BookmarkBase bookmark = new ManualBookmark();
+			ConnectionModel currentModel = AppPreferences.getInstance(this).currentConnection;
+			bookmark.<ManualBookmark> get().setHostname(currentModel.hostname);
+			bookmark.<ManualBookmark> get().setPort(Integer.valueOf(currentModel.port));
+			bookmark.<ManualBookmark> get().setUsername(currentModel.username);
+			bookmark.<ManualBookmark> get().setPassword(currentModel.password);
+			
+			if (bookmark != null)
+				connect(bookmark);
+			else
+				closeSessionActivity(RESULT_CANCELED);
 		} else {
 			// no session found - exit
 			closeSessionActivity(RESULT_CANCELED);
@@ -700,6 +712,33 @@ public class SessionActivity extends ActionBarActivity implements
 		thread.start();
 	}
 
+	
+	private void bindConnectionAction() {
+		// bind session
+		bindSession();
+
+		if (progressDialog != null) {
+			progressDialog.dismiss();
+			progressDialog = null;
+		}
+
+		// add hostname to history if quick connect was used
+		Bundle bundle = getIntent().getExtras();
+		if (bundle != null
+				&& bundle.containsKey(PARAM_CONNECTION_REFERENCE)) {
+			if (ConnectionReference.isHostnameReference(bundle
+					.getString(PARAM_CONNECTION_REFERENCE))) {
+				assert session.getBookmark().getType() == BookmarkBase.TYPE_MANUAL;
+				String item = session.getBookmark().<ManualBookmark> get()
+						.getHostname();
+				if (!GlobalApp.getQuickConnectHistoryGateway()
+						.historyItemExists(item))
+					GlobalApp.getQuickConnectHistoryGateway()
+							.addHistoryItem(item);
+			}
+		}
+	}
+	
 	// binds the current session to the activity by wiring it up with the
 	// sessionView and updating all internal objects accordingly
 	private void bindSession() {
@@ -1068,6 +1107,8 @@ public class SessionActivity extends ActionBarActivity implements
 		if (GlobalSettings.getAcceptAllCertificates())
 			return true;
 
+		return true;
+		/*
 		// this is where the return code of our dialog will be stored
 		callbackDialogResult = false;
 
@@ -1091,6 +1132,7 @@ public class SessionActivity extends ActionBarActivity implements
 		}
 
 		return callbackDialogResult;
+		*/
 	}
 
 	@Override
@@ -1238,5 +1280,45 @@ public class SessionActivity extends ActionBarActivity implements
 	public void onClipboardChanged(String data) {
 		Log.v(TAG, "onClipboardChanged: " + data);
 		LibFreeRDP.sendClipboardData(session.getInstance(), data);
+	}
+	
+	private static final int TASK_CHECKAVAILAVILITY = 5005;
+
+	@Override
+	public Object onTaskRunning(int taskId, Object data) {
+		if (taskId == TASK_CHECKAVAILAVILITY) {
+			return Server.sendRdpStatusRequest(AppPreferences.getInstance(this).currentConnection.rdpToken);
+		}
+		return null;
+	}
+
+	@Override
+	public void onTaskResult(int taskId, Object result) {
+		if (taskId == TASK_CHECKAVAILAVILITY) {
+			boolean ret = (Boolean)result;
+			if (ret) {
+				retryCount = 0;
+				bindConnectionAction();
+			} else {
+				if (retryCount < 8) {
+					retryCount ++;
+					final Handler handler = new Handler();
+					handler.postDelayed(new Runnable() {
+						@Override
+						public void run() {
+							BaseTask signupTask = new BaseTask(TASK_CHECKAVAILAVILITY);
+							signupTask.setListener(SessionActivity.this);
+							signupTask.execute();
+						}
+					}, retryInterval);
+				} else {
+					LibFreeRDP.disconnect(session.getInstance());
+				}
+			}
+		}
+	}
+
+	@Override
+	public void onTaskProgress(int taskId, Object progress) {		
 	}
 }

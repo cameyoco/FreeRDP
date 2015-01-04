@@ -80,3 +80,4 @@ endif()
 
 add_subdirectory(FreeRDPCore)
 add_subdirectory(aFreeRDP)
+add_subdirectory(library)

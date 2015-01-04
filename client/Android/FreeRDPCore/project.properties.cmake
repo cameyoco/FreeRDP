@@ -14,3 +14,4 @@
 target=android-@ANDROID_APP_TARGET_SDK@
 android.library=true
 android.library.reference.1=../appcompat_v7
+android.library.reference.2=../library
