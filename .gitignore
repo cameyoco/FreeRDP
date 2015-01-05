@@ -128,3 +128,5 @@ default.log
 
 # etags
 TAGS
+client/Android/aFreeRDP/libs/armeabi-v7a/gdb.setup
+client/Android/aFreeRDP/libs/armeabi-v7a/gdbserver

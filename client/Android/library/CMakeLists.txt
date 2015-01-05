@@ -18,6 +18,8 @@
 
 set(ANDROID_PACKAGE_NAME "library")
 
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/AndroidManifest.xml.cmake
+	${CMAKE_CURRENT_BINARY_DIR}/AndroidManifest.xml @ONLY)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/build.xml.cmake
 	${CMAKE_CURRENT_BINARY_DIR}/build.xml @ONLY)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/project.properties.cmake
