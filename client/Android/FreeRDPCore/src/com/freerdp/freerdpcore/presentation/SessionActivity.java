@@ -3,7 +3,7 @@
 
    Copyright 2013 Thincast Technologies GmbH, Author: Martin Fleisz
 
-   This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. 
+   This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
    If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
@@ -73,10 +73,10 @@ public class SessionActivity extends ActionBarActivity implements
 		KeyboardMapper.KeyProcessingListener, SessionView.SessionViewListener,
 		TouchPointerView.TouchPointerListener,
 		ClipboardManagerProxy.OnClipboardChangedListener, TaskListener {
-	
+
 	private int retryCount;
 	private static final int retryInterval = 5000;
-	
+
 	private class UIHandler extends Handler {
 
 		public static final int REFRESH_SESSIONVIEW = 1;
@@ -248,7 +248,7 @@ public class SessionActivity extends ActionBarActivity implements
 			signupTask.setListener(SessionActivity.this);
 			signupTask.execute();
 		}
-		
+
 		private void OnConnectionFailure(Context context) {
 			Log.v(TAG, "OnConnectionFailure");
 
@@ -408,14 +408,14 @@ public class SessionActivity extends ActionBarActivity implements
 	private boolean hasHardwareMenuButton() {
 		if (Build.VERSION.SDK_INT <= 10)
 			return true;
-		
+
 		if (Build.VERSION.SDK_INT >= 14) {
 			boolean rc = false;
 			final ViewConfiguration cfg = ViewConfiguration.get(this);
-						
+
 			return cfg.hasPermanentMenuKey();
 		}
-		
+
 		return false;
 	}
 
@@ -428,7 +428,7 @@ public class SessionActivity extends ActionBarActivity implements
 			getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
 					WindowManager.LayoutParams.FLAG_FULLSCREEN);
 		}
-		
+
 		boolean tabletSize = getResources().getBoolean(R.bool.isTablet);
 		if (tabletSize) {
 			setRequestedOrientation (ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
@@ -643,15 +643,17 @@ public class SessionActivity extends ActionBarActivity implements
 		} else if (bundle.containsKey(PARAM_CONNECTION_CAMEYO)) {
 			BookmarkBase bookmark = new ManualBookmark();
 			ConnectionModel currentModel = AppPreferences.getInstance(this).currentConnection;
-			bookmark.<ManualBookmark> get().setHostname(currentModel.hostname);
-			bookmark.<ManualBookmark> get().setPort(Integer.valueOf(currentModel.port));
-			bookmark.<ManualBookmark> get().setUsername(currentModel.username);
-			bookmark.<ManualBookmark> get().setPassword(currentModel.password);
-			
-			if (bookmark != null)
-				connect(bookmark);
-			else
-				closeSessionActivity(RESULT_CANCELED);
+			if (currentModel != null) {
+				bookmark.<ManualBookmark> get().setHostname(currentModel.hostname);
+				bookmark.<ManualBookmark> get().setPort(Integer.valueOf(currentModel.port));
+				bookmark.<ManualBookmark> get().setUsername(currentModel.username);
+				bookmark.<ManualBookmark> get().setPassword(currentModel.password);
+
+				if (bookmark != null)
+					connect(bookmark);
+				else
+					closeSessionActivity(RESULT_CANCELED);
+			}
 		} else {
 			// no session found - exit
 			closeSessionActivity(RESULT_CANCELED);
@@ -712,7 +714,7 @@ public class SessionActivity extends ActionBarActivity implements
 		thread.start();
 	}
 
-	
+
 	private void bindConnectionAction() {
 		// bind session
 		bindSession();
@@ -738,7 +740,7 @@ public class SessionActivity extends ActionBarActivity implements
 			}
 		}
 	}
-	
+
 	// binds the current session to the activity by wiring it up with the
 	// sessionView and updating all internal objects accordingly
 	private void bindSession() {
@@ -1281,7 +1283,7 @@ public class SessionActivity extends ActionBarActivity implements
 		Log.v(TAG, "onClipboardChanged: " + data);
 		LibFreeRDP.sendClipboardData(session.getInstance(), data);
 	}
-	
+
 	private static final int TASK_CHECKAVAILAVILITY = 5005;
 
 	@Override
@@ -1319,6 +1321,6 @@ public class SessionActivity extends ActionBarActivity implements
 	}
 
 	@Override
-	public void onTaskProgress(int taskId, Object progress) {		
+	public void onTaskProgress(int taskId, Object progress) {
 	}
 }
