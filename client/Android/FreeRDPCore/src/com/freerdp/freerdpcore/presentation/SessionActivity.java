@@ -654,6 +654,8 @@ public class SessionActivity extends ActionBarActivity implements
 				else
 					closeSessionActivity(RESULT_CANCELED);
 			}
+			else
+				closeSessionActivity(RESULT_CANCELED);
 		} else {
 			// no session found - exit
 			closeSessionActivity(RESULT_CANCELED);
