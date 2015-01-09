@@ -163,7 +163,7 @@ public class Server {
 		ConnectionModel retModel = null;
 		try {
 			
-			if (response != null && !response.equals("")) {
+			if (response != null && !response.equals("") && !response.startsWith("ERR:")) {
 				JSONObject origin = new JSONObject(response);
 				retModel = new ConnectionModel(origin);
 			}
