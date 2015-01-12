@@ -59,9 +59,9 @@ public class SignUpActivity extends Activity implements TaskListener {
 		m_SubscribeCheckBox = (CheckBox)findViewById(R.id.subscribenews_chk);
 						
 		// test
-		m_EmailEdit.setText("endribisek@outlook.com");
-		m_PasswordEdit.setText("endribisek");
-		m_RePasswordEdit.setText("endribisek");
+//		m_EmailEdit.setText("endribisek@outlook.com");
+//		m_PasswordEdit.setText("endribisek");
+//		m_RePasswordEdit.setText("endribisek");
 		
 		m_SignInBtn = (Button)findViewById(R.id.signin_btn);
 		m_SignInBtn.setOnClickListener(new OnClickListener() {			

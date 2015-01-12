@@ -648,6 +648,7 @@ public class SessionActivity extends ActionBarActivity implements
 				bookmark.<ManualBookmark> get().setPort(Integer.valueOf(currentModel.port));
 				bookmark.<ManualBookmark> get().setUsername(currentModel.username);
 				bookmark.<ManualBookmark> get().setPassword(currentModel.password);
+				bookmark.getScreenSettings().setResolution(BookmarkBase.ScreenSettings.FITSCREEN);
 
 				if (bookmark != null)
 					connect(bookmark);
