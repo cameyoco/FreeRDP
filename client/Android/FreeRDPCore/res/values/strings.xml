@@ -226,4 +226,8 @@
     <string name="noapp_string">No apps</string>
     <string name="alert_signupinvalid">Email address is not valid or already exists</string>
     
+    
+    <string name="alertmsg_signup">Sign up success</string>
+    <string name="alert_signup_success">Check your email inbox.</string>
+    
 </resources>

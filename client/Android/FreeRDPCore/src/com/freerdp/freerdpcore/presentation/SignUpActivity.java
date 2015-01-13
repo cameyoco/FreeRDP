@@ -1,7 +1,9 @@
 package com.freerdp.freerdpcore.presentation;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.os.Bundle;
@@ -154,10 +156,17 @@ public class SignUpActivity extends Activity implements TaskListener {
 		} else if (taskId == TASK_SIGNUP) {
 			boolean ret = (Boolean)result;
 			if (ret) {
-				progressDialog = GlobalAPI.showProgressDialog(this);
-				BaseTask signupTask = new BaseTask(TASK_LOGIN);
-				signupTask.setListener(this);
-				signupTask.execute();
+				AlertDialog.Builder builder = new AlertDialog.Builder(SignUpActivity.this);
+				builder.setMessage(getString(R.string.alert_signup_success))
+					   .setTitle(getString(R.string.alertmsg_signup))
+				       .setCancelable(true)
+				       .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+				           public void onClick(DialogInterface dialog, int id) {
+				        	   handleSignIn();
+				           }
+				       });
+				AlertDialog alert = builder.create();
+				alert.show();
 			} else {
 				GlobalAPI.showDialogAlert(this, R.string.alertmsg_title, R.string.alert_signupinvalid);
 			}
