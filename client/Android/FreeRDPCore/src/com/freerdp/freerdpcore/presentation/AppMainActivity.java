@@ -17,6 +17,7 @@ import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
+import android.util.Log;
 import android.view.Display;
 import android.view.MenuItem;
 import android.view.View;
@@ -69,6 +70,8 @@ public class AppMainActivity extends FragmentActivity {
 
 	protected void onCreate(Bundle inState) {
 		super.onCreate(inState);
+		
+		Log.i("Create", "onCreate APPMainActivity");
 		getWindow().requestFeature(Window.FEATURE_ACTION_BAR);
 		
 //		setContentView(R.layout.app_main_tab_fragment_layout);
@@ -143,6 +146,11 @@ public class AppMainActivity extends FragmentActivity {
 			});
 		} else {
 			setContentView(R.layout.app_main_tab_fragment_layout);
+			
+			Intent intent = new Intent(this, LoginActivity.class); 
+			intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+			startActivity(intent);
+			return;
 		}
 		
 		HashMap<String, Object> hashInfo = new HashMap<String, Object>();
@@ -157,6 +165,16 @@ public class AppMainActivity extends FragmentActivity {
         }
 	}
 	
+	
+	
+	@Override
+	protected void onResume() {
+		super.onResume();
+		Log.i("onResume", "onResume APPMainActivity");
+	}
+
+
+
 	private void setCategoryIndex(int index) {
 		mActivePosition = index;
 		if (AppPreferences.currentCategories.length > index) {

@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -66,11 +67,45 @@ public class LOMoreFragment extends BaseFragment implements TaskListener, OnItem
 		
 		if (AppPreferences.currentCategories != null && AppPreferences.currentCategories.length > 0) {
 			loadCategory(AppPreferences.currentCategories[0].id);
+		} else {
+			
 		}
     }
 
     
-    private void InitView(View root) {    	
+     
+    @Override
+	public void onResume() {
+		// TODO Auto-generated method stub
+		super.onResume();
+		
+		Log.d(this.getClass().getSimpleName(), "onResume()");
+		
+		if (AppPreferences.currentCategories != null && AppPreferences.currentCategories.length > 0) {
+			
+		} else {
+			Intent intent = new Intent(mActivity, LoginActivity.class); 
+			intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+			mActivity.startActivity(intent);
+		}
+	}
+
+	@Override
+	public void onActivityCreated(@Nullable Bundle savedInstanceState) {
+		// TODO Auto-generated method stub
+		super.onActivityCreated(savedInstanceState);
+		Log.d(this.getClass().getSimpleName(), "onActivityCreated()");
+	}
+
+	@Override
+	public void onStart() {
+		// TODO Auto-generated method stub
+    	super.onStart();
+		Log.d(this.getClass().getSimpleName(), "onStart()");
+		
+	}
+
+	private void InitView(View root) {    	
     	mAppBoardGridView = (GridView) root.findViewById(R.id.app_gridview);
     	
     	boolean tabletSize = getResources().getBoolean(R.bool.isTablet);
