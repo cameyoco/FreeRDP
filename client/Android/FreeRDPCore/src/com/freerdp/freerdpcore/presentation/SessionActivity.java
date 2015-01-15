@@ -590,7 +590,8 @@ public class SessionActivity extends ActionBarActivity implements
 		mClipboardManager.removeClipboardboardChangedListener(this);
 
 		// free session
-		GlobalApp.freeSession(session.getInstance());
+		if (session != null)
+			GlobalApp.freeSession(session.getInstance());
 		session = null;
 	}
 
@@ -649,6 +650,7 @@ public class SessionActivity extends ActionBarActivity implements
 				bookmark.<ManualBookmark> get().setUsername(currentModel.username);
 				bookmark.<ManualBookmark> get().setPassword(currentModel.password);
 				bookmark.getScreenSettings().setResolution(BookmarkBase.ScreenSettings.FITSCREEN);
+				//bookmark.getScreenSettings().setResolution("custom", 600, 400);
 
 				if (bookmark != null)
 					connect(bookmark);
