@@ -1307,7 +1307,7 @@ public class SessionActivity extends ActionBarActivity implements
 				retryCount = 0;
 				bindConnectionAction();
 			} else {
-				if (retryCount < 12) {	// 12 x 5 = 60 sec timeout
+				if (retryCount < 18) {	// 18 x 5 = 90 sec timeout
 					retryCount ++;
 					final Handler handler = new Handler();
 					handler.postDelayed(new Runnable() {
