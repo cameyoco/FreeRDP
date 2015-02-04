@@ -24,7 +24,9 @@ public class Server {
 
 	public static String serverUrl(String relativePage, String userEmail, String password) {
 		String httpOrhttps = Protocol.SERVER_HTTPS ? "https://" : "http://";
-		String url = httpOrhttps + Protocol.SERVER_URL + ":" + Protocol.SERVER_PORT + "/" + relativePage;
+		String url = httpOrhttps + Protocol.SERVER_URL + ":" + Protocol.SERVER_PORT;
+        if (relativePage != null && !relativePage.isEmpty())
+            url += "/" + relativePage;
 		if (userEmail != null && !userEmail.isEmpty() && password != null && !password.isEmpty()) {
 			if (relativePage.contains("?"))
 				url += "&user=" + userEmail + "&pass=" + password;
@@ -34,7 +36,15 @@ public class Server {
 		return url;
 	}
 
-	public static PackageCategoryModel[] sendLoginRequest(String userEmail, String password) {
+    public static String serverUrl(String relativePage) {
+        return serverUrl(relativePage, null, null);
+    }
+
+    public static String serverUrl() {
+        return serverUrl(null, null, null);
+    }
+
+    public static PackageCategoryModel[] sendLoginRequest(String userEmail, String password) {
 		String httpOrhttps = Protocol.SERVER_HTTPS ? "https://" : "http://";
 		String path = httpOrhttps + Protocol.SERVER_URL + ":" + Protocol.SERVER_PORT
 				+ "/packager.aspx?op=AccountAuth" + "&user=" + userEmail

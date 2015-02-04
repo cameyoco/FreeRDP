@@ -5,8 +5,10 @@ import java.util.ArrayList;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
+import android.content.res.Resources;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
+import android.text.Html;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,6 +19,7 @@ import android.widget.BaseAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.text.method.LinkMovementMethod;
 
 import com.freerdp.freerdpcore.R;
 import com.freerdp.freerdpcore.manager.AppPreferences;
@@ -35,7 +38,7 @@ import com.freerdp.freerdpcore.task.TaskListener;
 public class LOMoreFragment extends BaseFragment implements TaskListener, OnItemClickListener{
 
     private GridView mAppBoardGridView;
-    private TextView mNoAppLabel;
+    private TextView mNoAppLabel, mAddAppLabel;
 
     private ArrayList<AppModel> mAppArray = new ArrayList<AppModel>();
 
@@ -122,8 +125,12 @@ public class LOMoreFragment extends BaseFragment implements TaskListener, OnItem
     	mNoAppLabel = (TextView) root.findViewById(R.id.noapp_textview);
     	mNoAppLabel.setVisibility(View.INVISIBLE);
 
-    	TextView mAddAppLabel = (TextView) root.findViewById(R.id.addapp_textview);
-    	mAddAppLabel.setMovementMethod(LinkMovementMethod.getInstance());
+    	mAddAppLabel = (TextView) root.findViewById(R.id.addapp_textview);
+        mAddAppLabel.setVisibility(View.INVISIBLE);
+        String addAppTxt = getResources().getString(R.string.addapp_string);
+        addAppTxt = "<a href='" + Server.serverUrl("add") + "'>" + addAppTxt + "</a>";
+        mAddAppLabel.setText(Html.fromHtml(addAppTxt));
+        mAddAppLabel.setMovementMethod(LinkMovementMethod.getInstance());
     }
 
     public void loadCategory(String category) {
@@ -242,8 +249,10 @@ public class LOMoreFragment extends BaseFragment implements TaskListener, OnItem
 					mAppArray.add(retArray[i]);
 				}
 				mNoAppLabel.setVisibility(View.INVISIBLE);
+                mAddAppLabel.setVisibility(View.INVISIBLE);
 			} else {
 				mNoAppLabel.setVisibility(View.VISIBLE);
+                mAddAppLabel.setVisibility(View.VISIBLE);
 			}
 			mGridAdapter.notifyDataSetChanged();
 		} else if (taskId == TASK_ESTABLISHCONNECTION) {

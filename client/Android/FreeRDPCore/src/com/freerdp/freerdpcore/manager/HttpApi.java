@@ -34,7 +34,7 @@ public class HttpApi {
 			DefaultHttpClient httpClient = new DefaultHttpClient();
 
 			org.apache.http.params.HttpParams nparams = httpClient.getParams();
-			HttpConnectionParams.setConnectionTimeout(nparams, 10 * 1000);
+			HttpConnectionParams.setConnectionTimeout(nparams, 30 * 1000);
 			HttpConnectionParams.setSoTimeout(nparams, 10 * 1000);
 			//httpClient.setParams(params);
 			/** Set Cookie information */
