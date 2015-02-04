@@ -101,7 +101,7 @@
 
         <provider
             android:name="com.freerdp.freerdpcore.services.FreeRDPSuggestionProvider"
-            android:authorities="com.freerdp.afreerdp.services.freerdpsuggestionprovider" >
+            android:authorities="com.cameyo.player.services.freerdpsuggestionprovider" >
         </provider>
     </application>
 
