@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <resources>
-    <string name="app_title">aFreeRDP</string>
+    <string name="app_title">aCameyoPlayer</string>
     <!-- Search strings -->
-    <string name="search_label">aFreeRDP</string>
-    <string name="search_settings_description">L\'ordinateur distant</string>
+    <string name="search_label">aCameyoPlayer</string>
+    <string name="search_settings_description">Applications distantes</string>
 </resources>
