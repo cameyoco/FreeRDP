@@ -26,4 +26,14 @@
         android:textColor="@android:color/darker_gray"
         android:textSize="35sp" />
 
+    <TextView
+        android:id="@+id/addapp_textview"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:text="@string/addapp_string"
+        android:textColor="@android:color/darker_gray"
+        android:textSize="35sp" />
+
 </RelativeLayout>

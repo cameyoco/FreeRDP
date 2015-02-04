@@ -33,58 +33,58 @@ import com.freerdp.freerdpcore.task.TaskListener;
  * Time: 2:02 AM
  */
 public class LOMoreFragment extends BaseFragment implements TaskListener, OnItemClickListener{
-    
+
     private GridView mAppBoardGridView;
     private TextView mNoAppLabel;
-    
+
     private ArrayList<AppModel> mAppArray = new ArrayList<AppModel>();
-    
+
     private MyAdapter mGridAdapter;
-    
+
     private String currentPackageId;
-    
+
     private String currentCategory;
-    
+
     private static final int TASK_FETCHAPPLIST = 5001;
     private static final int TASK_ESTABLISHCONNECTION = 5002;
-    
+
     @Override
     public final View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.fragment_lo_more, container, false);
         InitView(v);
-        
+
         return v;
     }
-    
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         Log.d(this.getClass().getSimpleName(), "onCreate()");
-        
+
         super.onCreate(savedInstanceState);
-        
+
         mActivity.setActionBackFlag(false);
 		mActivity.setActionButtonFlag(false);
-		
+
 		if (AppPreferences.currentCategories != null && AppPreferences.currentCategories.length > 0) {
 			loadCategory(AppPreferences.currentCategories[0].id);
 		} else {
-			
+
 		}
     }
 
-    
-     
+
+
     @Override
 	public void onResume() {
 		// TODO Auto-generated method stub
 		super.onResume();
-		
+
 		Log.d(this.getClass().getSimpleName(), "onResume()");
-		
+
 		if (AppPreferences.currentCategories != null && AppPreferences.currentCategories.length > 0) {
-			
+
 		} else {
-			Intent intent = new Intent(mActivity, LoginActivity.class); 
+			Intent intent = new Intent(mActivity, LoginActivity.class);
 			intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
 			mActivity.startActivity(intent);
 		}
@@ -102,37 +102,40 @@ public class LOMoreFragment extends BaseFragment implements TaskListener, OnItem
 		// TODO Auto-generated method stub
     	super.onStart();
 		Log.d(this.getClass().getSimpleName(), "onStart()");
-		
+
 	}
 
-	private void InitView(View root) {    	
+	private void InitView(View root) {
     	mAppBoardGridView = (GridView) root.findViewById(R.id.app_gridview);
-    	
+
     	boolean tabletSize = getResources().getBoolean(R.bool.isTablet);
 		if (tabletSize) {
 			mAppBoardGridView.setNumColumns(2);
 		} else {
 			mAppBoardGridView.setNumColumns(1);
 		}
-		
+
     	mGridAdapter = new MyAdapter(mActivity);
     	mAppBoardGridView.setAdapter(mGridAdapter);
     	mAppBoardGridView.setOnItemClickListener(this);
-    	
+
     	mNoAppLabel = (TextView) root.findViewById(R.id.noapp_textview);
     	mNoAppLabel.setVisibility(View.INVISIBLE);
+
+    	TextView mAddAppLabel = (TextView) root.findViewById(R.id.addapp_textview);
+    	mAddAppLabel.setMovementMethod(LinkMovementMethod.getInstance());
     }
-    
+
     public void loadCategory(String category) {
     	currentCategory = category;
-    	
+
     	mActivity.showWaitingDialog();
 		BaseTask signupTask = new BaseTask(TASK_FETCHAPPLIST);
 		signupTask.setListener(this);
 		signupTask.execute();
     }
 
-	
+
     @Override
 	public boolean onBackPressed() {
 		mActivity.popFragments(0);
@@ -143,14 +146,14 @@ public class LOMoreFragment extends BaseFragment implements TaskListener, OnItem
 	public boolean onNextPressed() {
 		return true;
 	}
-	
+
 	private class MyAdapter extends BaseAdapter
     {
         private LayoutInflater inflater;
 
         public MyAdapter(Context context)
         {
-            inflater = LayoutInflater.from(context);            
+            inflater = LayoutInflater.from(context);
         }
 
         @Override
@@ -218,10 +221,10 @@ public class LOMoreFragment extends BaseFragment implements TaskListener, OnItem
 	@Override
 	public Object onTaskRunning(int taskId, Object data) {
 		if (taskId == TASK_FETCHAPPLIST) {
-			return Server.getAppArray(AppPreferences.getInstance(getActivity()).getLoEmailId(), 
+			return Server.getAppArray(AppPreferences.getInstance(getActivity()).getLoEmailId(),
 					AppPreferences.getInstance(getActivity()).getLoPassword(), currentCategory);
 		} else if (taskId == TASK_ESTABLISHCONNECTION) {
-			return Server.sendConnectionRequest(AppPreferences.getInstance(getActivity()).getLoEmailId(), 
+			return Server.sendConnectionRequest(AppPreferences.getInstance(getActivity()).getLoEmailId(),
 					AppPreferences.getInstance(getActivity()).getLoPassword(), currentPackageId);
 		}
 		return null;
@@ -232,7 +235,7 @@ public class LOMoreFragment extends BaseFragment implements TaskListener, OnItem
 		mActivity.hideWaitingDialog();
 		if (taskId == TASK_FETCHAPPLIST) {
 			AppModel[] retArray = (AppModel[])result;
-			
+
 			mAppArray.clear();
 			if (retArray != null && retArray.length > 0) {
 				for (int i = 0; i < retArray.length; i ++) {
@@ -246,7 +249,7 @@ public class LOMoreFragment extends BaseFragment implements TaskListener, OnItem
 		} else if (taskId == TASK_ESTABLISHCONNECTION) {
 			ConnectionModel retModel = (ConnectionModel)result;
 			AppPreferences.getInstance(getActivity()).currentConnection = retModel;
-			
+
 			Bundle bundle = new Bundle();
 			bundle.putString(SessionActivity.PARAM_CONNECTION_CAMEYO, "now");
 			Intent sessionIntent = new Intent(mActivity, SessionActivity.class);
@@ -257,7 +260,7 @@ public class LOMoreFragment extends BaseFragment implements TaskListener, OnItem
 	}
 
 	@Override
-	public void onTaskProgress(int taskId, Object progress) {		
+	public void onTaskProgress(int taskId, Object progress) {
 	}
 
 	@Override
