@@ -16,8 +16,8 @@
 		android:largeScreens="true"
 		android:xlargeScreens="true" />
 			
-	<application android:name="com.cameyo.player.application.GlobalApp"
-		android:label="Cameyo Windows Apps"
+	<application android:name="com.freerdp.afreerdp.application.GlobalApp"
+		android:label="Cameyo Player"
 		android:debuggable="@ANDROID_DEBUG_ENABLE@"
 		android:icon="@drawable/icon_launcher_freerdp" >
 
