@@ -224,6 +224,7 @@
     <string name="alert_wrongusernameorpassword">Invalid username or password</string>
     <string name="alert_submitsuccess_exists">Successfully submitted</string>
     <string name="noapp_string">No apps</string>
+    <string name="addapp_string">Add app</string>
     <string name="alert_signupinvalid">Email address is not valid or already exists</string>
     
     
