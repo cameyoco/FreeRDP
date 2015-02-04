@@ -1,6 +1,6 @@
 package com.freerdp.afreerdp.application;
 
 
-public class GlobalApp extends com.freerdp.freerdpcore.application.GlobalApp {
+public class GlobalApp extends com.cameyo.player.application.GlobalApp {
 
 }
