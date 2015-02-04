@@ -167,8 +167,8 @@
     <!-- Activity titles -->
     <string name="title_bookmark_settings">Configuración de la conexión</string>
     <string name="title_application_settings">Configuración</string>
-    <string name="title_home">aCameyoPlayer - Cameyo Player para Android</string>
-    <string name="title_create_shortcut">Conexiones Apps</string>
+    <string name="title_home">aFreeRDP - aFreeRDP para Android</string>
+    <string name="title_create_shortcut">Conexiones RDP</string>
     <string name="title_help">Ayuda</string>
     <string name="title_about">Sobre</string>
     <!-- Error message strings -->
