@@ -35,7 +35,7 @@ public class HttpApi {
 
 			org.apache.http.params.HttpParams nparams = httpClient.getParams();
 			HttpConnectionParams.setConnectionTimeout(nparams, 30 * 1000);
-			HttpConnectionParams.setSoTimeout(nparams, 10 * 1000);
+			HttpConnectionParams.setSoTimeout(nparams, 90 * 1000);
 			//httpClient.setParams(params);
 			/** Set Cookie information */
 			if (cookieStore != null) {
@@ -74,6 +74,6 @@ public class HttpApi {
 	public static void clearCookie() {
 		cookieStore = null;
 	}
-	
-	
+
+
 }
