@@ -429,7 +429,9 @@ public class SessionActivity extends ActionBarActivity implements
 					WindowManager.LayoutParams.FLAG_FULLSCREEN);
 		}
 
-		boolean tabletSize = getResources().getBoolean(R.bool.isTablet);
+		// Use actual screen orientation in order to avoid application crash on activity recreation after setRequestedOrientation.
+		//boolean tabletSize = getResources().getBoolean(R.bool.isTablet);
+		boolean tabletSize = getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
 		if (tabletSize) {
 			setRequestedOrientation (ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
 		} else {

@@ -48,8 +48,9 @@ public class LoginActivity extends Activity implements TaskListener {
 		Protocol.SERVER_URL = GlobalAPI.serverAddress(this);
 		Protocol.SERVER_PORT = GlobalAPI.serverPort(this);
 		
-		
-		boolean tabletSize = getResources().getBoolean(R.bool.isTablet);
+		// Use actual screen orientation in order to avoid application crash on activity recreation after setRequestedOrientation.
+		//boolean tabletSize = getResources().getBoolean(R.bool.isTablet);
+		boolean tabletSize = getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
 		if (tabletSize) {
 			setRequestedOrientation (ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
 		} else {

@@ -103,9 +103,11 @@ public class AppMainActivity extends FragmentActivity {
             mContentText = inState.getString(STATE_CONTENT_TEXT);
         }
 
-		boolean tabletSize = getResources().getBoolean(R.bool.isTablet);
+		// Use actual screen orientation in order to avoid application crash on activity recreation after setRequestedOrientation.
+		//boolean tabletSize = getResources().getBoolean(R.bool.isTablet);
+		boolean tabletSize = getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
 		if (tabletSize) {
-			setRequestedOrientation (ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+		        setRequestedOrientation (ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
 			mMenuDrawer = MenuDrawer.attach(this, MenuDrawer.MENU_DRAG_CONTENT, Position.LEFT, true);
 			
 			Display display = getWindowManager().getDefaultDisplay();
@@ -116,7 +118,7 @@ public class AppMainActivity extends FragmentActivity {
 			
 			mMenuDrawer.setMenuSize(width/4);
 		} else {
-			setRequestedOrientation (ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+		        setRequestedOrientation (ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 			mMenuDrawer = MenuDrawer.attach(this, MenuDrawer.MENU_DRAG_CONTENT);
 		}
 		
