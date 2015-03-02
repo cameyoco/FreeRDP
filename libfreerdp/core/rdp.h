@@ -3,6 +3,7 @@
  * RDP Core
  *
  * Copyright 2011 Marc-Andre Moreau <marcandre.moreau@gmail.com>
+ * Copyright 2014 DI (FH) Martin Haimberger <martin.haimberger@thincast.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +25,7 @@
 #include "config.h"
 #endif
 
+#include "nla.h"
 #include "mcs.h"
 #include "tpkt.h"
 #include "bulk.h"
@@ -131,6 +133,7 @@ struct rdp_rdp
 	int state;
 	freerdp* instance;
 	rdpContext* context;
+	rdpNla* nla;
 	rdpMcs* mcs;
 	rdpNego* nego;
 	rdpBulk* bulk;
@@ -212,7 +215,8 @@ int rdp_recv_out_of_sequence_pdu(rdpRdp* rdp, wStream* s);
 
 void rdp_read_flow_control_pdu(wStream* s, UINT16* type);
 
-void rdp_set_blocking_mode(rdpRdp* rdp, BOOL blocking);
+int rdp_recv_callback(rdpTransport* transport, wStream* s, void* extra);
+
 int rdp_check_fds(rdpRdp* rdp);
 
 rdpRdp* rdp_new(rdpContext* context);
@@ -229,5 +233,6 @@ void rdp_free(rdpRdp* rdp);
 BOOL rdp_decrypt(rdpRdp* rdp, wStream* s, int length, UINT16 securityFlags);
 
 BOOL rdp_set_error_info(rdpRdp* rdp, UINT32 errorInfo);
+BOOL rdp_send_error_info(rdpRdp* rdp);
 
 #endif /* __RDP_H */

@@ -172,7 +172,7 @@
 
 BOOL rdp_client_connect(rdpRdp* rdp)
 {
-	BOOL ret;
+	BOOL status;
 	rdpSettings* settings = rdp->settings;
 
 	if (rdp->settingsCopy)
@@ -213,6 +213,7 @@ BOOL rdp_client_connect(rdpRdp* rdp)
 
 		cookie_length = domain_length + 1 + user_length;
 		cookie = (char*) malloc(cookie_length + 1);
+
 		if (!cookie)
 			return FALSE;
 
@@ -225,15 +226,15 @@ BOOL rdp_client_connect(rdpRdp* rdp)
 
 		cookie[cookie_length] = '\0';
 
-		ret = nego_set_cookie(rdp->nego, cookie);
+		status = nego_set_cookie(rdp->nego, cookie);
 		free(cookie);
 	}
 	else
 	{
-		ret = nego_set_cookie(rdp->nego, settings->Username);
+		status = nego_set_cookie(rdp->nego, settings->Username);
 	}
 
-	if (!ret)
+	if (!status)
 		return FALSE;
 
 	nego_set_send_preconnection_pdu(rdp->nego, settings->SendPreconnectionPdu);
@@ -262,43 +263,34 @@ BOOL rdp_client_connect(rdpRdp* rdp)
 			return FALSE;
 	}
 
+	rdp_client_transition_to_state(rdp, CONNECTION_STATE_NEGO);
+
 	if (!nego_connect(rdp->nego))
 	{
 		if (!freerdp_get_last_error(rdp->context))
-		{
 			freerdp_set_last_error(rdp->context, FREERDP_ERROR_SECURITY_NEGO_CONNECT_FAILED);
-		}
 
-		WLog_ERR(TAG,  "Error: protocol security negotiation or connection failure");
+		WLog_ERR(TAG, "Error: protocol security negotiation or connection failure");
 		return FALSE;
 	}
 
-	if ((rdp->nego->selected_protocol & PROTOCOL_TLS) || (rdp->nego->selected_protocol == PROTOCOL_RDP))
+	if ((rdp->nego->SelectedProtocol & PROTOCOL_TLS) || (rdp->nego->SelectedProtocol == PROTOCOL_RDP))
 	{
 		if ((settings->Username != NULL) && ((settings->Password != NULL) ||
 				(settings->RedirectionPassword != NULL && settings->RedirectionPasswordLength > 0)))
 			settings->AutoLogonEnabled = TRUE;
 	}
 
-	rdp_set_blocking_mode(rdp, FALSE);
+	/* everything beyond this point is event-driven and non blocking */
 
-	rdp_client_transition_to_state(rdp, CONNECTION_STATE_NEGO);
-	rdp->finalize_sc_pdus = 0;
+	rdp->transport->ReceiveCallback = rdp_recv_callback;
+	rdp->transport->ReceiveExtra = rdp;
+	transport_set_blocking_mode(rdp->transport, FALSE);
 
-	if (!mcs_send_connect_initial(rdp->mcs))
+	if (rdp->state != CONNECTION_STATE_NLA)
 	{
-		if (!connectErrorCode)
-		{
-			connectErrorCode = MCSCONNECTINITIALERROR;                      
-		}
-
-		if (!freerdp_get_last_error(rdp->context))
-		{
-			freerdp_set_last_error(rdp->context, FREERDP_ERROR_MCS_CONNECT_INITIAL_ERROR);
-		}
-
-		WLog_ERR(TAG,  "Error: unable to send MCS Connect Initial");
-		return FALSE;
+		if (!mcs_client_begin(rdp->mcs))
+			return FALSE;
 	}
 
 	while (rdp->state != CONNECTION_STATE_ACTIVE)
@@ -306,9 +298,7 @@ BOOL rdp_client_connect(rdpRdp* rdp)
 		if (rdp_check_fds(rdp) < 0)
 		{
 			if (!freerdp_get_last_error(rdp->context))
-			{
 				freerdp_set_last_error(rdp->context, FREERDP_ERROR_CONNECT_TRANSPORT_FAILED);
-			}
 
 			return FALSE;
 		}
@@ -319,7 +309,21 @@ BOOL rdp_client_connect(rdpRdp* rdp)
 
 BOOL rdp_client_disconnect(rdpRdp* rdp)
 {
-	return transport_disconnect(rdp->transport);
+	BOOL status;
+
+	if (rdp->settingsCopy)
+	{
+		freerdp_settings_free(rdp->settingsCopy);
+		rdp->settingsCopy = NULL;
+	}
+
+	status = nego_disconnect(rdp->nego);
+
+	rdp_reset(rdp);
+
+	rdp_client_transition_to_state(rdp, CONNECTION_STATE_INITIAL);
+
+	return status;
 }
 
 BOOL rdp_client_redirect(rdpRdp* rdp)
@@ -328,9 +332,6 @@ BOOL rdp_client_redirect(rdpRdp* rdp)
 	rdpSettings* settings = rdp->settings;
 
 	rdp_client_disconnect(rdp);
-
-	rdp_reset(rdp);
-
 	rdp_redirection_apply_settings(rdp);
 
 	if (settings->RedirectionFlags & LB_LOAD_BALANCE_INFO)
@@ -375,11 +376,19 @@ BOOL rdp_client_redirect(rdpRdp* rdp)
 
 BOOL rdp_client_reconnect(rdpRdp* rdp)
 {
+	BOOL status;
+	rdpContext* context = rdp->context;
+	rdpChannels* channels = context->channels;
+
+	freerdp_channels_disconnect(channels, context->instance);
 	rdp_client_disconnect(rdp);
 
-	rdp_reset(rdp);
+	status = rdp_client_connect(rdp);
 
-	return rdp_client_connect(rdp);
+	if (status)
+		freerdp_channels_post_connect(channels, context->instance);
+
+	return status;
 }
 
 static BYTE fips_ivec[8] = { 0x12, 0x34, 0x56, 0x78, 0x90, 0xAB, 0xCD, 0xEF };
@@ -628,38 +637,6 @@ end2:
 	return ret;
 }
 
-BOOL rdp_client_connect_mcs_connect_response(rdpRdp* rdp, wStream* s)
-{
-	if (!mcs_recv_connect_response(rdp->mcs, s))
-	{
-		WLog_ERR(TAG,  "rdp_client_connect_mcs_connect_response: mcs_recv_connect_response failed");
-		return FALSE;
-	}
-
-	if (!mcs_send_erect_domain_request(rdp->mcs))
-		return FALSE;
-
-	if (!mcs_send_attach_user_request(rdp->mcs))
-		return FALSE;
-
-	rdp_client_transition_to_state(rdp, CONNECTION_STATE_MCS_ATTACH_USER);
-
-	return TRUE;
-}
-
-BOOL rdp_client_connect_mcs_attach_user_confirm(rdpRdp* rdp, wStream* s)
-{
-	if (!mcs_recv_attach_user_confirm(rdp->mcs, s))
-		return FALSE;
-
-	if (!mcs_send_channel_join_request(rdp->mcs, rdp->mcs->userId))
-		return FALSE;
-
-	rdp_client_transition_to_state(rdp, CONNECTION_STATE_MCS_CHANNEL_JOIN);
-
-	return TRUE;
-}
-
 BOOL rdp_client_connect_mcs_channel_join_confirm(rdpRdp* rdp, wStream* s)
 {
 	UINT32 i;
@@ -758,7 +735,7 @@ BOOL rdp_client_connect_mcs_channel_join_confirm(rdpRdp* rdp, wStream* s)
 	return TRUE;
 }
 
-BOOL rdp_client_connect_auto_detect(rdpRdp* rdp, wStream *s)
+BOOL rdp_client_connect_auto_detect(rdpRdp* rdp, wStream* s)
 {
 	BYTE* mark;
 	UINT16 length;
@@ -796,7 +773,7 @@ int rdp_client_connect_license(rdpRdp* rdp, wStream* s)
 
 	if (rdp->license->state == LICENSE_STATE_ABORTED)
 	{
-		WLog_ERR(TAG,  "license connection sequence aborted.");
+		WLog_ERR(TAG, "license connection sequence aborted.");
 		return -1;
 	}
 
@@ -905,6 +882,10 @@ int rdp_client_transition_to_state(rdpRdp* rdp, int state)
 			rdp->state = CONNECTION_STATE_NEGO;
 			break;
 
+		case CONNECTION_STATE_NLA:
+			rdp->state = CONNECTION_STATE_NLA;
+			break;
+
 		case CONNECTION_STATE_MCS_CONNECT:
 			rdp->state = CONNECTION_STATE_MCS_CONNECT;
 			break;
@@ -974,48 +955,76 @@ BOOL rdp_server_accept_nego(rdpRdp* rdp, wStream* s)
 	if (!nego_read_request(nego, s))
 		return FALSE;
 
-	nego->selected_protocol = 0;
-	WLog_INFO(TAG,  "Client Security: NLA:%d TLS:%d RDP:%d",
-			 (nego->requested_protocols & PROTOCOL_NLA) ? 1 : 0,
-			 (nego->requested_protocols & PROTOCOL_TLS) ? 1 : 0,
-			 (nego->requested_protocols == PROTOCOL_RDP) ? 1 : 0
+	nego->SelectedProtocol = 0;
+	WLog_INFO(TAG, "Client Security: NLA:%d TLS:%d RDP:%d",
+			 (nego->RequestedProtocols & PROTOCOL_NLA) ? 1 : 0,
+			 (nego->RequestedProtocols & PROTOCOL_TLS) ? 1 : 0,
+			 (nego->RequestedProtocols == PROTOCOL_RDP) ? 1 : 0
 			);
-	WLog_INFO(TAG,  "Server Security: NLA:%d TLS:%d RDP:%d",
+	WLog_INFO(TAG, "Server Security: NLA:%d TLS:%d RDP:%d",
 			 settings->NlaSecurity, settings->TlsSecurity, settings->RdpSecurity);
 
-	if ((settings->NlaSecurity) && (nego->requested_protocols & PROTOCOL_NLA))
+	if ((settings->NlaSecurity) && (nego->RequestedProtocols & PROTOCOL_NLA))
 	{
-		nego->selected_protocol = PROTOCOL_NLA;
+		nego->SelectedProtocol = PROTOCOL_NLA;
 	}
-	else if ((settings->TlsSecurity) && (nego->requested_protocols & PROTOCOL_TLS))
+	else if ((settings->TlsSecurity) && (nego->RequestedProtocols & PROTOCOL_TLS))
 	{
-		nego->selected_protocol = PROTOCOL_TLS;
+		nego->SelectedProtocol = PROTOCOL_TLS;
 	}
-	else if ((settings->RdpSecurity) && (nego->selected_protocol == PROTOCOL_RDP))
+	else if ((settings->RdpSecurity) && (nego->RequestedProtocols == PROTOCOL_RDP))
 	{
-		nego->selected_protocol = PROTOCOL_RDP;
+		nego->SelectedProtocol = PROTOCOL_RDP;
 	}
 	else
 	{
-		WLog_ERR(TAG,  "Protocol security negotiation failure");
+		/*
+		 * when here client and server aren't compatible, we select the right
+		 * error message to return to the client in the nego failure packet
+		 */
+		nego->SelectedProtocol = PROTOCOL_FAILED_NEGO;
+
+		if (settings->RdpSecurity)
+		{
+			WLog_ERR(TAG, "server supports only Standard RDP Security");
+			nego->SelectedProtocol |= SSL_NOT_ALLOWED_BY_SERVER;
+		}
+		else
+		{
+			if (settings->NlaSecurity && !settings->TlsSecurity)
+			{
+				WLog_ERR(TAG, "server supports only NLA Security");
+				nego->SelectedProtocol |= HYBRID_REQUIRED_BY_SERVER;
+			}
+			else
+			{
+				WLog_ERR(TAG, "server supports only a SSL based Security (TLS or NLA)");
+				nego->SelectedProtocol |= SSL_REQUIRED_BY_SERVER;
+			}
+		}
+
+		WLog_ERR(TAG, "Protocol security negotiation failure");
 	}
 
-	WLog_INFO(TAG,  "Negotiated Security: NLA:%d TLS:%d RDP:%d",
-			 (nego->selected_protocol & PROTOCOL_NLA) ? 1 : 0,
-			 (nego->selected_protocol & PROTOCOL_TLS) ? 1 : 0,
-			 (nego->selected_protocol == PROTOCOL_RDP) ? 1: 0
-			);
+	if (!(nego->SelectedProtocol & PROTOCOL_FAILED_NEGO))
+	{
+		WLog_INFO(TAG, "Negotiated Security: NLA:%d TLS:%d RDP:%d",
+				 (nego->SelectedProtocol & PROTOCOL_NLA) ? 1 : 0,
+				 (nego->SelectedProtocol & PROTOCOL_TLS) ? 1 : 0,
+				 (nego->SelectedProtocol == PROTOCOL_RDP) ? 1: 0
+				);
+	}
 
 	if (!nego_send_negotiation_response(nego))
 		return FALSE;
 
 	status = FALSE;
 
-	if (nego->selected_protocol & PROTOCOL_NLA)
+	if (nego->SelectedProtocol & PROTOCOL_NLA)
 		status = transport_accept_nla(rdp->transport);
-	else if (nego->selected_protocol & PROTOCOL_TLS)
+	else if (nego->SelectedProtocol & PROTOCOL_TLS)
 		status = transport_accept_tls(rdp->transport);
-	else if (nego->selected_protocol == PROTOCOL_RDP) /* 0 */
+	else if (nego->SelectedProtocol == PROTOCOL_RDP) /* 0 */
 		status = transport_accept_rdp(rdp->transport);
 
 	if (!status)
@@ -1036,12 +1045,12 @@ BOOL rdp_server_accept_mcs_connect_initial(rdpRdp* rdp, wStream* s)
 	if (!mcs_recv_connect_initial(mcs, s))
 		return FALSE;
 
-	WLog_INFO(TAG,  "Accepted client: %s", rdp->settings->ClientHostname);
-	WLog_INFO(TAG,  "Accepted channels:");
+	WLog_INFO(TAG, "Accepted client: %s", rdp->settings->ClientHostname);
+	WLog_INFO(TAG, "Accepted channels:");
 
 	for (i = 0; i < mcs->channelCount; i++)
 	{
-		WLog_INFO(TAG,  " %s", mcs->channels[i].Name);
+		WLog_INFO(TAG, " %s", mcs->channels[i].Name);
 	}
 
 	if (!mcs_send_connect_response(mcs))
@@ -1153,7 +1162,6 @@ BOOL rdp_server_reactivate(rdpRdp* rdp)
 		return FALSE;
 
 	rdp->AwaitCapabilities = TRUE;
-
 	return TRUE;
 }
 
@@ -1239,7 +1247,6 @@ int rdp_server_transition_to_state(rdpRdp* rdp, int state)
 					 * PostConnect should only be called once and should not
 					 * be called after a reactivation sequence.
 					 */
-
 					IFCALLRET(client->PostConnect, client->connected, client);
 
 					if (!client->connected)

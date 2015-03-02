@@ -3,6 +3,8 @@
  * Windows Terminal Services API
  *
  * Copyright 2013 Marc-Andre Moreau <marcandre.moreau@gmail.com>
+ * Copyright 2015 DI (FH) Martin Haimberger <martin.haimberger@thincast.com>
+ * Copyright 2015 Copyright 2015 Thincast Technologies GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -216,6 +218,16 @@ BOOL WINAPI WTSStartRemoteControlSessionW(LPWSTR pTargetServerName, ULONG Target
 BOOL WINAPI WTSStartRemoteControlSessionA(LPSTR pTargetServerName, ULONG TargetLogonId, BYTE HotkeyVk, USHORT HotkeyModifiers)
 {
 	WTSAPI_STUB_CALL_BOOL(StartRemoteControlSessionA, pTargetServerName, TargetLogonId, HotkeyVk, HotkeyModifiers);
+}
+
+BOOL WINAPI WTSStartRemoteControlSessionExW(LPWSTR pTargetServerName, ULONG TargetLogonId, BYTE HotkeyVk, USHORT HotkeyModifiers, DWORD flags)
+{
+	WTSAPI_STUB_CALL_BOOL(StartRemoteControlSessionExW, pTargetServerName, TargetLogonId, HotkeyVk, HotkeyModifiers, flags);
+}
+
+BOOL WINAPI WTSStartRemoteControlSessionExA(LPSTR pTargetServerName, ULONG TargetLogonId, BYTE HotkeyVk, USHORT HotkeyModifiers, DWORD flags)
+{
+	WTSAPI_STUB_CALL_BOOL(StartRemoteControlSessionExA, pTargetServerName, TargetLogonId, HotkeyVk, HotkeyModifiers, flags);
 }
 
 BOOL WINAPI WTSStopRemoteControlSession(ULONG LogonId)
@@ -536,6 +548,16 @@ BOOL CDECL WTSGetChildSessionId(PULONG pSessionId)
 	WTSAPI_STUB_CALL_BOOL(GetChildSessionId, pSessionId);
 }
 
+BOOL CDECL WTSLogonUser(HANDLE hServer, LPCSTR username, LPCSTR password, LPCSTR domain)
+{
+	WTSAPI_STUB_CALL_BOOL(LogonUser, hServer, username, password, domain);
+}
+
+BOOL CDECL WTSLogoffUser(HANDLE hServer)
+{
+	WTSAPI_STUB_CALL_BOOL(LogoffUser, hServer);
+}
+
 #ifndef _WIN32
 
 /**
@@ -554,6 +576,78 @@ DWORD WINAPI WTSGetActiveConsoleSessionId(void)
 }
 
 #endif
+
+const CHAR* WTSErrorToString(UINT error)
+{
+	switch(error)
+	{
+	case CHANNEL_RC_OK:
+		return "CHANNEL_RC_OK";
+
+	case CHANNEL_RC_ALREADY_INITIALIZED:
+		return "CHANNEL_RC_ALREADY_INITIALIZED";
+
+	case CHANNEL_RC_NOT_INITIALIZED:
+		return "CHANNEL_RC_NOT_INITIALIZED";
+
+	case CHANNEL_RC_ALREADY_CONNECTED:
+		return "CHANNEL_RC_ALREADY_CONNECTED";
+
+	case CHANNEL_RC_NOT_CONNECTED:
+		return "CHANNEL_RC_NOT_CONNECTED";
+
+	case CHANNEL_RC_TOO_MANY_CHANNELS:
+		return "CHANNEL_RC_TOO_MANY_CHANNELS";
+
+	case CHANNEL_RC_BAD_CHANNEL:
+		return "CHANNEL_RC_BAD_CHANNEL";
+
+	case CHANNEL_RC_BAD_CHANNEL_HANDLE:
+		return "CHANNEL_RC_BAD_CHANNEL_HANDLE";
+
+	case CHANNEL_RC_NO_BUFFER:
+		return "CHANNEL_RC_NO_BUFFER";
+
+	case CHANNEL_RC_BAD_INIT_HANDLE:
+		return "CHANNEL_RC_BAD_INIT_HANDLE";
+
+	case CHANNEL_RC_NOT_OPEN:
+		return "CHANNEL_RC_NOT_OPEN";
+
+	case CHANNEL_RC_BAD_PROC:
+		return "CHANNEL_RC_BAD_PROC";
+
+	case CHANNEL_RC_NO_MEMORY:
+		return "CHANNEL_RC_NO_MEMORY";
+
+	case CHANNEL_RC_UNKNOWN_CHANNEL_NAME:
+		return "CHANNEL_RC_UNKNOWN_CHANNEL_NAME";
+
+	case CHANNEL_RC_ALREADY_OPEN:
+		return "CHANNEL_RC_ALREADY_OPEN";
+
+	case CHANNEL_RC_NOT_IN_VIRTUALCHANNELENTRY:
+		return "CHANNEL_RC_NOT_IN_VIRTUALCHANNELENTRY";
+
+	case CHANNEL_RC_NULL_DATA:
+		return "CHANNEL_RC_NULL_DATA";
+
+	case CHANNEL_RC_ZERO_LENGTH:
+		return "CHANNEL_RC_ZERO_LENGTH";
+
+	case CHANNEL_RC_INVALID_INSTANCE:
+		return "CHANNEL_RC_INVALID_INSTANCE";
+
+	case CHANNEL_RC_UNSUPPORTED_VERSION:
+		return "CHANNEL_RC_UNSUPPORTED_VERSION";
+
+	case CHANNEL_RC_INITIALIZATION_ERROR:
+		return "CHANNEL_RC_INITIALIZATION_ERROR";
+
+	default:
+		return "UNKNOWN";
+	}
+}
 
 BOOL WTSRegisterWtsApiFunctionTable(PWtsApiFunctionTable table)
 {

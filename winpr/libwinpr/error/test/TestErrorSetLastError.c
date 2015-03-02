@@ -19,6 +19,7 @@
  */
 
 #include <winpr/crt.h>
+#include <winpr/wlog.h>
 #include <winpr/synch.h>
 #include <winpr/thread.h>
 #include <winpr/interlocked.h>
@@ -59,6 +60,11 @@ int TestErrorSetLastError(int argc, char* argv[])
 {
 	DWORD error;
 	HANDLE threads[4];
+
+	/* We must initialize WLog here. It will check for settings
+	 * in the environment and if the variables are not set, the last
+	 * error state is changed... */
+	WLog_GetRoot();
 
 	SetLastError(ERROR_ACCESS_DENIED);
 
