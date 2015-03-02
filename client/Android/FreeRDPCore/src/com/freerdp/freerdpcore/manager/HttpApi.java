@@ -20,6 +20,10 @@ public class HttpApi {
 	private static CookieStore cookieStore = null;
 
 	public static String sendRequest(String serverUrl, HttpEntity entity, int[] statusCode) {
+		return sendRequest(serverUrl, entity, statusCode, 10 * 1000);
+	}
+
+	public static String sendRequest(String serverUrl, HttpEntity entity, int[] statusCode, int soTimeout) {
 
 		HttpPost httpRequest = new HttpPost(serverUrl);
 		int status = -1;
@@ -35,7 +39,7 @@ public class HttpApi {
 
 			org.apache.http.params.HttpParams nparams = httpClient.getParams();
 			HttpConnectionParams.setConnectionTimeout(nparams, 30 * 1000);
-			HttpConnectionParams.setSoTimeout(nparams, 10 * 1000);
+			HttpConnectionParams.setSoTimeout(nparams, soTimeout);
 			//httpClient.setParams(params);
 			/** Set Cookie information */
 			if (cookieStore != null) {
@@ -74,6 +78,6 @@ public class HttpApi {
 	public static void clearCookie() {
 		cookieStore = null;
 	}
-	
-	
+
+
 }

@@ -178,7 +178,7 @@ public class Server {
 
 		Log.i("login", path);
 
-		String response = HttpApi.sendRequest(path, null, null);
+		String response = HttpApi.sendRequest(path, null, null, 90 * 1000);
 
 		if (response == null) return null;
 
