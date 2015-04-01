@@ -22,6 +22,7 @@
 #endif
 
 #include <assert.h>
+#include <string.h>
 
 #include <winpr/crt.h>
 #include <winpr/sspi.h>
@@ -36,6 +37,10 @@
 
 #ifdef HAVE_POLL_H
 #include <poll.h>
+#endif
+
+#ifdef HAVE_VALGRIND_MEMCHECK_H
+#include <valgrind/memcheck.h>
 #endif
 
 #define TAG FREERDP_TAG("crypto")
@@ -53,7 +58,6 @@ long bio_rdp_tls_callback(BIO* bio, int mode, const char* argp, int argi, long a
 
 static int bio_rdp_tls_write(BIO* bio, const char* buf, int size)
 {
-	int error;
 	int status;
 	BIO_RDP_TLS* tls = (BIO_RDP_TLS*) bio->ptr;
 
@@ -91,16 +95,7 @@ static int bio_rdp_tls_write(BIO* bio, const char* buf, int size)
 				break;
 
 			case SSL_ERROR_SYSCALL:
-				error = WSAGetLastError();
-				if ((error == WSAEWOULDBLOCK) || (error == WSAEINTR) ||
-					(error == WSAEINPROGRESS) || (error == WSAEALREADY))
-				{
-					BIO_set_flags(bio, (BIO_FLAGS_WRITE | BIO_FLAGS_SHOULD_RETRY));
-				}
-				else
-				{
-					BIO_clear_flags(bio, BIO_FLAGS_SHOULD_RETRY);
-				}
+				BIO_clear_flags(bio, BIO_FLAGS_SHOULD_RETRY);
 				break;
 
 			case SSL_ERROR_SSL:
@@ -114,7 +109,6 @@ static int bio_rdp_tls_write(BIO* bio, const char* buf, int size)
 
 static int bio_rdp_tls_read(BIO* bio, char* buf, int size)
 {
-	int error;
 	int status;
 	BIO_RDP_TLS* tls = (BIO_RDP_TLS*) bio->ptr;
 
@@ -165,19 +159,17 @@ static int bio_rdp_tls_read(BIO* bio, char* buf, int size)
 				break;
 
 			case SSL_ERROR_SYSCALL:
-				error = WSAGetLastError();
-				if ((error == WSAEWOULDBLOCK) || (error == WSAEINTR) ||
-					(error == WSAEINPROGRESS) || (error == WSAEALREADY))
-				{
-					BIO_set_flags(bio, (BIO_FLAGS_READ | BIO_FLAGS_SHOULD_RETRY));
-				}
-				else
-				{
-					BIO_clear_flags(bio, BIO_FLAGS_SHOULD_RETRY);
-				}
+				BIO_clear_flags(bio, BIO_FLAGS_SHOULD_RETRY);
 				break;
 		}
 	}
+
+#ifdef HAVE_VALGRIND_MEMCHECK_H
+	if (status > 0)
+	{
+		VALGRIND_MAKE_MEM_DEFINED(buf, status);
+	}
+#endif
 
 	return status;
 }
@@ -503,6 +495,7 @@ static CryptoCert tls_get_certificate(rdpTls* tls, BOOL peer)
 {
 	CryptoCert cert;
 	X509* remote_cert;
+	STACK_OF(X509) *chain;
 
 	if (peer)
 		remote_cert = SSL_get_peer_certificate(tls->ssl);
@@ -523,6 +516,11 @@ static CryptoCert tls_get_certificate(rdpTls* tls, BOOL peer)
 	}
 
 	cert->px509 = remote_cert;
+
+	/* Get the peer's chain. If it does not exist, we're setting NULL (clean data either way) */
+	chain = SSL_get_peer_cert_chain(tls->ssl);
+	cert->px509chain = chain;
+
 	return cert;
 }
 
@@ -711,7 +709,7 @@ int tls_do_handshake(rdpTls* tls, BOOL clientMode)
 		if (verify_status < 1)
 		{
 			WLog_ERR(TAG, "certificate not trusted, aborting.");
-			tls_disconnect(tls);
+			tls_send_alert(tls);
 			verify_status = 0;
 		}
 	}
@@ -760,6 +758,19 @@ int tls_connect(rdpTls* tls, BIO* underlying)
 
 	return tls_do_handshake(tls, TRUE);
 }
+
+#ifndef OPENSSL_NO_TLSEXT
+static void tls_openssl_tlsext_debug_callback(SSL *s, int client_server,
+	int type, unsigned char *data, int len, void *arg)
+{
+	/* see code comment in tls_accept() below */
+
+	if (type == TLSEXT_TYPE_server_name) {
+		WLog_DBG(TAG, "Client uses SNI (extension disabled)");
+		s->servername_done = 2;
+	}
+}
+#endif
 
 BOOL tls_accept(rdpTls* tls, BIO* underlying, const char* cert_file, const char* privatekey_file)
 {
@@ -818,10 +829,31 @@ BOOL tls_accept(rdpTls* tls, BIO* underlying, const char* cert_file, const char*
 		return FALSE;
 	}
 
+#ifndef OPENSSL_NO_TLSEXT
+	/**
+	 * The Microsoft iOS clients eventually send a null or even double null
+	 * terminated hostname in the SNI TLS extension!
+	 * If the length indicator does not equal the hostname strlen OpenSSL
+	 * will abort (see openssl:ssl/t1_lib.c).
+	 * Here is a tcpdump segment of Microsoft Remote Desktop Client Version
+	 * 8.1.7 running on an iPhone 4 with iOS 7.1.2 showing the transmitted
+	 * SNI hostname TLV blob when connection to server "abcd":
+	 * 00                  name_type 0x00 (host_name)
+	 * 00 06               length_in_bytes 0x0006
+	 * 61 62 63 64 00 00   host_name "abcd\0\0"
+	 *
+	 * Currently the only (runtime) workaround is setting an openssl tls
+	 * extension debug callback that sets the SSL context's servername_done
+	 * to 1 which effectively disables the parsing of that extension type.
+	 */
+
+	SSL_set_tlsext_debug_callback(tls->ssl, tls_openssl_tlsext_debug_callback);
+#endif
+
 	return tls_do_handshake(tls, FALSE) > 0;
 }
 
-BOOL tls_disconnect(rdpTls* tls)
+BOOL tls_send_alert(rdpTls* tls)
 {
 	if (!tls)
 		return FALSE;
@@ -852,14 +884,7 @@ BOOL tls_disconnect(rdpTls* tls)
 
 		if (tls->ssl->s3->wbuf.left == 0)
 			tls->ssl->method->ssl_dispatch_alert(tls->ssl);
-
-		SSL_shutdown(tls->ssl);
 	}
-	else
-	{
-		SSL_shutdown(tls->ssl);
-	}
-
 	return TRUE;
 }
 
@@ -924,7 +949,7 @@ BOOL tls_match_hostname(char *pattern, int pattern_length, char *hostname)
 {
 	if (strlen(hostname) == pattern_length)
 	{
-		if (memcmp((void*) hostname, (void*) pattern, pattern_length) == 0)
+		if (_strnicmp( hostname, pattern, pattern_length) == 0)
 			return TRUE;
 	}
 
@@ -932,7 +957,7 @@ BOOL tls_match_hostname(char *pattern, int pattern_length, char *hostname)
 	{
 		char* check_hostname = &hostname[strlen(hostname) - pattern_length + 1];
 
-		if (memcmp((void*) check_hostname, (void*) &pattern[1], pattern_length - 1) == 0)
+		if (_strnicmp( check_hostname, &pattern[1], pattern_length - 1) == 0)
 		{
 			return TRUE;
 		}
@@ -1000,8 +1025,15 @@ int tls_verify_certificate(rdpTls* tls, CryptoCert cert, char* hostname, int por
 
 		while (offset >= length)
 		{
-			length *= 2;
-			pemCert = (BYTE*) realloc(pemCert, length + 1);
+			int new_len;
+			BYTE *new_cert;
+
+			new_len = length * 2;
+			new_cert = (BYTE*) realloc(pemCert, new_len + 1);
+			if (!new_cert)
+				return -1;
+			length = new_len;
+			pemCert = new_cert;
 
 			status = BIO_read(bio, &pemCert[offset], length);
 

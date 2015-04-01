@@ -61,8 +61,13 @@ static void* transport_client_thread(void* arg);
 wStream* transport_send_stream_init(rdpTransport* transport, int size)
 {
 	wStream* s;
-	s = StreamPool_Take(transport->ReceivePool, size);
-	Stream_EnsureCapacity(s, size);
+	if (!(s = StreamPool_Take(transport->ReceivePool, size)))
+		return NULL;
+	if (!Stream_EnsureCapacity(s, size))
+	{
+		Stream_Release(s);
+		return NULL;
+	}
 	Stream_SetPosition(s, 0);
 	return s;
 }
@@ -207,18 +212,50 @@ BOOL transport_connect(rdpTransport* transport, const char* hostname, UINT16 por
 
 	if (transport->GatewayEnabled)
 	{
-		transport->tsg = tsg_new(transport);
+		if (!status && settings->GatewayHttpTransport)
+		{
+			transport->rdg = rdg_new(transport);
 
-		if (!transport->tsg)
-			return FALSE;
+			if (!transport->rdg)
+				return FALSE;
 
-		if (!tsg_connect(transport->tsg, hostname, port, timeout))
-			return FALSE;
+			status = rdg_connect(transport->rdg, hostname, port, timeout);
 
-		transport->frontBio = transport->tsg->bio;
-		transport->layer = TRANSPORT_LAYER_TSG;
+			if (status)
+			{
+				transport->frontBio = transport->rdg->frontBio;
+				BIO_set_nonblock(transport->frontBio, 0);
+				transport->layer = TRANSPORT_LAYER_TSG;
+				status = TRUE;
+			}
+			else
+			{
+				rdg_free(transport->rdg);
+				transport->rdg = NULL;
+			}
+		}
 
-		status = TRUE;
+		if (!status && settings->GatewayRpcTransport)
+		{
+			transport->tsg = tsg_new(transport);
+
+			if (!transport->tsg)
+				return FALSE;
+
+			status = tsg_connect(transport->tsg, hostname, port, timeout);
+
+			if (status)
+			{
+				transport->frontBio = transport->tsg->bio;
+				transport->layer = TRANSPORT_LAYER_TSG;
+				status = TRUE;
+			}
+			else
+			{
+				tsg_free(transport->tsg);
+				transport->tsg = NULL;
+			}
+		}
 	}
 	else
 	{
@@ -413,7 +450,8 @@ int transport_read_pdu(rdpTransport* transport, wStream* s)
 
 	position = Stream_GetPosition(s);
 	/* Make sure there is enough space for the longest header within the stream */
-	Stream_EnsureCapacity(s, 4);
+	if (!Stream_EnsureCapacity(s, 4))
+		return -1;
 
 	/* Make sure at least two bytes are read for further processing */
 	if (position < 2 && (status = transport_read_layer_bytes(transport, s, 2 - position)) != 1)
@@ -519,7 +557,8 @@ int transport_read_pdu(rdpTransport* transport, wStream* s)
 		}
 	}
 
-	Stream_EnsureCapacity(s, Stream_GetPosition(s) + pduLength);
+	if (!Stream_EnsureCapacity(s, Stream_GetPosition(s) + pduLength))
+		return -1;
 	status = transport_read_layer_bytes(transport, s, pduLength - Stream_GetPosition(s));
 
 	if (status != 1)
@@ -621,7 +660,14 @@ UINT32 transport_get_event_handles(rdpTransport* transport, HANDLE* events)
 	}
 	else
 	{
-		nCount += tsg_get_event_handles(transport->tsg, events);
+		if (transport->rdg)
+		{
+			nCount += rdg_get_event_handles(transport->rdg, events);
+		}
+		else if (transport->tsg)
+		{
+			nCount += tsg_get_event_handles(transport->tsg, events);
+		}
 	}
 
 	return nCount;
@@ -695,7 +741,8 @@ int transport_check_fds(rdpTransport* transport)
 		}
 
 		received = transport->ReceiveBuffer;
-		transport->ReceiveBuffer = StreamPool_Take(transport->ReceivePool, 0);
+		if (!(transport->ReceiveBuffer = StreamPool_Take(transport->ReceivePool, 0)))
+			return -1;
 		/**
 		 * status:
 		 * 	-1: error
@@ -778,6 +825,12 @@ BOOL transport_disconnect(rdpTransport* transport)
 	{
 		tsg_free(transport->tsg);
 		transport->tsg = NULL;
+	}
+
+	if (transport->rdg)
+	{
+		rdg_free(transport->rdg);
+		transport->rdg = NULL;
 	}
 
 	transport->frontBio = NULL;

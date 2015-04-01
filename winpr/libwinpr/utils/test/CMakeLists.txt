@@ -6,7 +6,9 @@ set(${MODULE_PREFIX}_DRIVER ${MODULE_NAME}.c)
 
 set(${MODULE_PREFIX}_TESTS
 	TestIni.c
+	TestVersion.c
 	TestImage.c
+	TestBipBuffer.c
 	TestBacktrace.c
 	TestQueue.c
 	TestPrint.c

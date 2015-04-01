@@ -375,13 +375,6 @@ static void tsmf_sample_playback_video(TSMF_SAMPLE* sample)
 		event.frameWidth = sample->stream->width;
 		event.frameHeight = sample->stream->height;
 
-		/* The frame data ownership is passed to the event object, and is freed after the event is processed. */
-		sample->data = NULL;
-		sample->decoded_size = 0;
-
-		if (tsmf->FrameEvent)
-			tsmf->FrameEvent(tsmf, &event);
-
 #if 0
 		/* Dump a .ppm image for every 30 frames. Assuming the frame is in YUV format, we
 		   extract the Y values to create a grayscale image. */
@@ -404,6 +397,15 @@ static void tsmf_sample_playback_video(TSMF_SAMPLE* sample)
 
 		frame_id++;
 #endif
+
+		/* The frame data ownership is passed to the event object, and is freed after the event is processed. */
+		sample->data = NULL;
+		sample->decoded_size = 0;
+
+		if (tsmf->FrameEvent)
+			tsmf->FrameEvent(tsmf, &event);
+
+		free(event.frameData);
 	}
 }
 
@@ -817,6 +819,7 @@ void tsmf_presentation_set_geometry_info(TSMF_PRESENTATION* presentation,
 	UINT32 index;
 	UINT32 count;
 	TSMF_STREAM* stream;
+	void *tmp_rects;
 
 	/* The server may send messages with invalid width / height.
 	 * Ignore those messages. */
@@ -835,11 +838,14 @@ void tsmf_presentation_set_geometry_info(TSMF_PRESENTATION* presentation,
 	presentation->y = y;
 	presentation->width = width;
 	presentation->height = height;
-	presentation->nr_rects = num_rects;
-	presentation->rects = realloc(presentation->rects, sizeof(RDP_RECT) * num_rects);
 
-	if (presentation->rects)
-		CopyMemory(presentation->rects, rects, sizeof(RDP_RECT) * num_rects);
+	tmp_rects = realloc(presentation->rects, sizeof(RDP_RECT) * num_rects);
+	if (!tmp_rects)
+		return;
+	presentation->nr_rects = num_rects;
+	presentation->rects = tmp_rects;
+
+	CopyMemory(presentation->rects, rects, sizeof(RDP_RECT) * num_rects);
 
 	ArrayList_Lock(presentation->stream_list);
 	count = ArrayList_Count(presentation->stream_list);
