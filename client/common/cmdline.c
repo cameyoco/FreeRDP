@@ -2232,9 +2232,9 @@ int cameyo_packager_get(rdpSettings* settings, char* serverHost, int serverPort,
 {
 	char url[1024];
 	FILE* fp;
-	
+
 	// https://serverHost:serverPort/packager.aspx?op=RdpPlay&user=[username]&pass=[password]&pkgId=[PkgId]&client=[Play.OS]
-	sprintf(url, "wget -O - -o /dev/null '%s://%s:%d/packager.aspx?op=%s&user=%s&pass=%s&pkgId=%s&client=Play.Linux'", 
+	sprintf(url, "wget -O - -o /dev/null '%s://%s:%d/packager.aspx?op=%s&user=%s&pass=%s&pkgId=%s&client=Play.Linux'",
 		(https ? "https" : "http"), serverHost, serverPort, op, username ? username : "", password ? password : "", pkgId);
 	printf("%s\n", url);
 	fp = popen(url, "r");
@@ -2262,7 +2262,7 @@ int cameyo_packager_get(rdpSettings* settings, char* serverHost, int serverPort,
 			fprintf(stderr, "Incorrect server reply from URL: %s\n", url);
 			return 1;
 		}
-		
+
 		// Basics
 		settings->ServerPort = atoi(port);
 		settings->ServerHostname = hostname;
@@ -2303,13 +2303,13 @@ int cameyo_settings_parse_command_line_arguments(rdpSettings* settings, int argc
 	if (optind != argc - 1)
 	{
 		fprintf(stderr, "Usage: %s [-u] [-p] [-s] pkgId\n", argv[0]);
-		exit(1);	
+		exit(1);
 	}
 
 	char* pkgId = argv[optind];
 	freerdp_client_print_version();
 	cameyo_packager_get(settings, "online.cameyo.com", 443, TRUE, "RdpPlay", NULL, NULL, pkgId);
-	
+
 	// Certificate
 	//settings->CertificateName = "winrap";//TBD
 	settings->IgnoreCertificate = TRUE; //TBD
@@ -2353,9 +2353,9 @@ int cameyo_settings_parse_command_line_arguments(rdpSettings* settings, int argc
 	settings->AutoReconnectionEnabled = arg->Value ? TRUE : FALSE;*/
 
 	// Security mode: standard RDP
-	settings->RdpSecurity = TRUE;
+	settings->RdpSecurity = FALSE;
 	settings->TlsSecurity = FALSE;
-	settings->NlaSecurity = FALSE;
+	settings->NlaSecurity = TRUE;
 	settings->ExtSecurity = FALSE;
 	//settings->DisableEncryption = TRUE;
 	settings->EncryptionMethods = ENCRYPTION_METHOD_40BIT | ENCRYPTION_METHOD_56BIT | ENCRYPTION_METHOD_128BIT | ENCRYPTION_METHOD_FIPS;
