@@ -32,19 +32,27 @@
 
 static BOOL rail_read_unicode_string(wStream* s, RAIL_UNICODE_STRING* unicode_string)
 {
+	UINT16 new_len;
+	BYTE *new_str;
+
 	if (Stream_GetRemainingLength(s) < 2)
 		return FALSE;
 
-	Stream_Read_UINT16(s, unicode_string->length); /* cbString (2 bytes) */
+	Stream_Read_UINT16(s, new_len); /* cbString (2 bytes) */
 
-	if (Stream_GetRemainingLength(s) < unicode_string->length)
+	if (Stream_GetRemainingLength(s) < new_len)
 		return FALSE;
 
-	if (!unicode_string->string)
-		unicode_string->string = (BYTE*) malloc(unicode_string->length);
-	else
-		unicode_string->string = (BYTE*) realloc(unicode_string->string, unicode_string->length);
+	new_str = (BYTE*) realloc(unicode_string->string, new_len);
+	if (!new_str)
+	{
+		free (unicode_string->string);
+		unicode_string->string = NULL;
+		return FALSE;
+	}
 
+	unicode_string->string = new_str;
+	unicode_string->length = new_len;
 	Stream_Read(s, unicode_string->string, unicode_string->length);
 
 	return TRUE;
@@ -95,7 +103,11 @@ BOOL update_read_icon_info(wStream* s, ICON_INFO* iconInfo)
 	/* bitsMask */
 	newBitMask = (BYTE*) realloc(iconInfo->bitsMask, iconInfo->cbBitsMask);
 	if (!newBitMask)
+	{
+		free (iconInfo->bitsMask);
+		iconInfo->bitsMask = NULL;
 		return FALSE;
+	}
 	iconInfo->bitsMask = newBitMask;
 
 	Stream_Read(s, iconInfo->bitsMask, iconInfo->cbBitsMask);
@@ -108,7 +120,16 @@ BOOL update_read_icon_info(wStream* s, ICON_INFO* iconInfo)
 	}
 	else if (iconInfo->cbColorTable)
 	{
-		iconInfo->colorTable = (BYTE*) realloc(iconInfo->colorTable, iconInfo->cbColorTable);
+		BYTE *new_tab;
+
+		new_tab = (BYTE*) realloc(iconInfo->colorTable, iconInfo->cbColorTable);
+		if (!new_tab)
+		{
+			free (iconInfo->colorTable);
+			iconInfo->colorTable = NULL;
+			return FALSE;
+		}
+		iconInfo->colorTable = new_tab;
 	}
 	else
 	{
@@ -122,7 +143,11 @@ BOOL update_read_icon_info(wStream* s, ICON_INFO* iconInfo)
 	/* bitsColor */
 	newBitMask = (BYTE *)realloc(iconInfo->bitsColor, iconInfo->cbBitsColor);
 	if (!newBitMask)
+	{
+		free (iconInfo->bitsColor);
+		iconInfo->bitsColor = NULL;
 		return FALSE;
+	}
 	iconInfo->bitsColor = newBitMask;
 
 	Stream_Read(s, iconInfo->bitsColor, iconInfo->cbBitsColor);
@@ -476,6 +501,8 @@ BOOL update_read_desktop_actively_monitored_order(wStream* s, WINDOW_ORDER_INFO*
 
 	if (orderInfo->fieldFlags & WINDOW_ORDER_FIELD_DESKTOP_ZORDER)
 	{
+		UINT32 *newid;
+
 		if (Stream_GetRemainingLength(s) < 1)
 			return FALSE;
 
@@ -486,10 +513,14 @@ BOOL update_read_desktop_actively_monitored_order(wStream* s, WINDOW_ORDER_INFO*
 
 		size = sizeof(UINT32) * monitored_desktop->numWindowIds;
 
-		if (monitored_desktop->windowIds == NULL)
-			monitored_desktop->windowIds = (UINT32*) malloc(size);
-		else
-			monitored_desktop->windowIds = (UINT32*) realloc(monitored_desktop->windowIds, size);
+		newid = (UINT32*) realloc(monitored_desktop->windowIds, size);
+		if (!newid)
+		{
+			free (monitored_desktop->windowIds);
+			monitored_desktop->windowIds = NULL;
+			return FALSE;
+		}
+		monitored_desktop->windowIds = newid;
 
 		/* windowIds */
 		for (i = 0; i < (int) monitored_desktop->numWindowIds; i++)

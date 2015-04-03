@@ -81,6 +81,7 @@ COMMAND_LINE_ARGUMENT_A args[] =
 	{ "gu", COMMAND_LINE_VALUE_REQUIRED, "[<domain>\\]<user> or <user>[@<domain>]", NULL, NULL, -1, NULL, "Gateway username" },
 	{ "gp", COMMAND_LINE_VALUE_REQUIRED, "<password>", NULL, NULL, -1, NULL, "Gateway password" },
 	{ "gd", COMMAND_LINE_VALUE_REQUIRED, "<domain>", NULL, NULL, -1, NULL, "Gateway domain" },
+	{ "gt", COMMAND_LINE_VALUE_REQUIRED, "<rpc|http|auto>", NULL, NULL, -1, NULL, "Gateway transport type" },
 	{ "gateway-usage-method", COMMAND_LINE_VALUE_REQUIRED, "<direct|detect>", NULL, NULL, -1, "gum", "Gateway usage method" },
 	{ "load-balance-info", COMMAND_LINE_VALUE_REQUIRED, "<info string>", NULL, NULL, -1, NULL, "Load balance info" },
 	{ "app", COMMAND_LINE_VALUE_REQUIRED, "<executable path> or <||alias>", NULL, NULL, -1, NULL, "Remote application program" },
@@ -217,7 +218,7 @@ int freerdp_client_print_command_line_help(int argc, char** argv)
 			if (arg->Format)
 			{
 				length = (int)(strlen(arg->Name) + strlen(arg->Format) + 2);
-				str = (char*) malloc(length + 1);
+				str = (char*) calloc(length + 1UL, sizeof(char));
 				sprintf_s(str, length + 1, "%s:%s", arg->Name, arg->Format);
 				printf("%-20s", str);
 				free(str);
@@ -232,7 +233,7 @@ int freerdp_client_print_command_line_help(int argc, char** argv)
 		else if (arg->Flags & COMMAND_LINE_VALUE_BOOL)
 		{
 			length = (int) strlen(arg->Name) + 32;
-			str = (char*) malloc(length + 1);
+			str = (char*) calloc(length + 1UL, sizeof(char));
 			sprintf_s(str, length + 1, "%s (default:%s)", arg->Name,
 					arg->Default ? "on" : "off");
 
@@ -475,7 +476,7 @@ int freerdp_client_add_static_channel(rdpSettings* settings, int count, char** p
 	args = (ADDIN_ARGV*) malloc(sizeof(ADDIN_ARGV));
 
 	args->argc = count;
-	args->argv = (char**) malloc(sizeof(char*) * args->argc);
+	args->argv = (char**) calloc(args->argc, sizeof(char*));
 
 	for (index = 0; index < args->argc; index++)
 		args->argv[index] = _strdup(params[index]);
@@ -493,7 +494,7 @@ int freerdp_client_add_dynamic_channel(rdpSettings* settings, int count, char** 
 	args = (ADDIN_ARGV*) malloc(sizeof(ADDIN_ARGV));
 
 	args->argc = count;
-	args->argv = (char**) malloc(sizeof(char*) * args->argc);
+	args->argv = (char**) calloc(args->argc, sizeof(char*));
 
 	for (index = 0; index < args->argc; index++)
 		args->argv[index] = _strdup(params[index]);
@@ -523,8 +524,7 @@ static char** freerdp_command_line_parse_comma_separated_values(char* list, int*
 		nCommas += (list[index] == ',') ? 1 : 0;
 
 	nArgs = nCommas + 1;
-	p = (char**) malloc(sizeof(char*) * (nArgs + 1));
-	ZeroMemory(p, sizeof(char*) * (nArgs + 1));
+	p = (char**) calloc((nArgs + 1UL), sizeof(char*));
 
 	str = (char*) list;
 
@@ -547,10 +547,16 @@ static char** freerdp_command_line_parse_comma_separated_values(char* list, int*
 static char** freerdp_command_line_parse_comma_separated_values_offset(char* list, int* count)
 {
 	char** p;
+	char** t;
 
 	p = freerdp_command_line_parse_comma_separated_values(list, count);
+	if (!p)
+		return NULL;
 
-	p = (char**) realloc(p, sizeof(char*) * (*count + 1));
+	t = (char**) realloc(p, sizeof(char*) * (*count + 1));
+	if (!t)
+		return NULL;
+	p = t;
 	MoveMemory(&p[1], p, sizeof(char*) * *count);
 	(*count)++;
 
@@ -800,7 +806,7 @@ int freerdp_parse_username(char* username, char** user, char** domain)
 	if (p)
 	{
 		length = (int) (p - username);
-		*domain = (char*) malloc(length + 1);
+		*domain = (char*) calloc(length + 1UL, sizeof(char));
 		strncpy(*domain, username, length);
 		(*domain)[length] = '\0';
 		*user = _strdup(&p[1]);
@@ -828,7 +834,7 @@ int freerdp_parse_hostname(char* hostname, char** host, int* port)
 	if (p)
 	{
 		length = (p - hostname);
-		*host = (char*) malloc(length + 1);
+		*host = (char*) calloc(length + 1UL, sizeof(char));
 
 		if (!(*host))
 			return -1;
@@ -985,7 +991,8 @@ int freerdp_detect_command_line_pre_filter(void* context, int index, int argc, L
 	return 0;
 }
 
-int freerdp_detect_windows_style_command_line_syntax(int argc, char** argv, int* count)
+int freerdp_detect_windows_style_command_line_syntax(int argc, char** argv,
+	int* count, BOOL ignoreUnknown)
 {
 	int status;
 	DWORD flags;
@@ -994,6 +1001,10 @@ int freerdp_detect_windows_style_command_line_syntax(int argc, char** argv, int*
 
 	flags = COMMAND_LINE_SEPARATOR_COLON;
 	flags |= COMMAND_LINE_SIGIL_SLASH | COMMAND_LINE_SIGIL_PLUS_MINUS;
+	if (ignoreUnknown)
+	{
+		flags |= COMMAND_LINE_IGN_UNKNOWN_KEYWORD;
+	}
 
 	*count = 0;
 	detect_status = 0;
@@ -1022,7 +1033,8 @@ int freerdp_detect_windows_style_command_line_syntax(int argc, char** argv, int*
 	return detect_status;
 }
 
-int freerdp_detect_posix_style_command_line_syntax(int argc, char** argv, int* count)
+int freerdp_detect_posix_style_command_line_syntax(int argc, char** argv,
+	int* count, BOOL ignoreUnknown)
 {
 	int status;
 	DWORD flags;
@@ -1032,6 +1044,10 @@ int freerdp_detect_posix_style_command_line_syntax(int argc, char** argv, int* c
 	flags = COMMAND_LINE_SEPARATOR_SPACE;
 	flags |= COMMAND_LINE_SIGIL_DASH | COMMAND_LINE_SIGIL_DOUBLE_DASH;
 	flags |= COMMAND_LINE_SIGIL_ENABLE_DISABLE;
+	if (ignoreUnknown)
+	{
+		flags |= COMMAND_LINE_IGN_UNKNOWN_KEYWORD;
+	}
 
 	*count = 0;
 	detect_status = 0;
@@ -1060,7 +1076,8 @@ int freerdp_detect_posix_style_command_line_syntax(int argc, char** argv, int* c
 	return detect_status;
 }
 
-BOOL freerdp_client_detect_command_line(int argc, char** argv, DWORD* flags)
+static BOOL freerdp_client_detect_command_line(int argc, char** argv,
+	DWORD* flags, BOOL ignoreUnknown)
 {
 	int old_cli_status;
 	int old_cli_count;
@@ -1070,8 +1087,8 @@ BOOL freerdp_client_detect_command_line(int argc, char** argv, DWORD* flags)
 	int windows_cli_count;
 	BOOL compatibility = FALSE;
 
-	windows_cli_status = freerdp_detect_windows_style_command_line_syntax(argc, argv, &windows_cli_count);
-	posix_cli_status = freerdp_detect_posix_style_command_line_syntax(argc, argv, &posix_cli_count);
+	windows_cli_status = freerdp_detect_windows_style_command_line_syntax(argc, argv, &windows_cli_count, ignoreUnknown);
+	posix_cli_status = freerdp_detect_posix_style_command_line_syntax(argc, argv, &posix_cli_count, ignoreUnknown);
 	old_cli_status = freerdp_detect_old_command_line_syntax(argc, argv, &old_cli_count);
 
 	/* Default is POSIX syntax */
@@ -1165,7 +1182,8 @@ int freerdp_client_settings_command_line_status_print(rdpSettings* settings, int
 	return 0;
 }
 
-int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, int argc, char** argv)
+int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
+	int argc, char** argv, BOOL allowUnknown)
 {
 	char* p;
 	char* str;
@@ -1175,7 +1193,7 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 	BOOL compatibility;
 	COMMAND_LINE_ARGUMENT_A* arg;
 
-	compatibility = freerdp_client_detect_command_line(argc, argv, &flags);
+	compatibility = freerdp_client_detect_command_line(argc, argv, &flags, allowUnknown);
 
 	if (compatibility)
 	{
@@ -1186,6 +1204,10 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 	{
 		CommandLineClearArgumentsA(args);
 
+		if (allowUnknown)
+		{
+			flags |= COMMAND_LINE_IGN_UNKNOWN_KEYWORD;
+		}
 		status = CommandLineParseArgumentsA(argc, (const char**) argv, args, flags, settings,
 				freerdp_client_command_line_pre_filter, freerdp_client_command_line_post_filter);
 
@@ -1215,7 +1237,7 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 				{
 					length = (int) (p - arg->Value);
 					settings->ServerPort = atoi(&p[1]);
-					settings->ServerHostname = (char*) malloc(length + 1);
+					settings->ServerHostname = (char*) calloc(length + 1UL, sizeof(char));
 					strncpy(settings->ServerHostname, arg->Value, length);
 					settings->ServerHostname[length] = '\0';
 				}
@@ -1451,7 +1473,7 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 				{
 					length = (int) (p - arg->Value);
 					settings->GatewayPort = atoi(&p[1]);
-					settings->GatewayHostname = (char*) malloc(length + 1);
+					settings->GatewayHostname = (char*) calloc(length + 1UL, sizeof(char));
 					strncpy(settings->GatewayHostname, arg->Value, length);
 					settings->GatewayHostname[length] = '\0';
 				}
@@ -1491,6 +1513,24 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 		{
 			settings->GatewayPassword = _strdup(arg->Value);
 			settings->GatewayUseSameCredentials = FALSE;
+		}
+		CommandLineSwitchCase(arg, "gt")
+		{
+			if (_stricmp(arg->Value, "rpc") == 0)
+			{
+				settings->GatewayRpcTransport = TRUE;
+				settings->GatewayHttpTransport = FALSE;
+			}
+			else if (_stricmp(arg->Value, "http") == 0)
+			{
+				settings->GatewayRpcTransport = FALSE;
+				settings->GatewayHttpTransport = TRUE;
+			}
+			else if (_stricmp(arg->Value, "auto") == 0)
+			{
+				settings->GatewayRpcTransport = TRUE;
+				settings->GatewayHttpTransport = TRUE;
+			}
 		}
 		CommandLineSwitchCase(arg, "gateway-usage-method")
 		{
@@ -2023,7 +2063,6 @@ int freerdp_client_load_addins(rdpChannels* channels, rdpSettings* settings)
 	UINT32 index;
 	ADDIN_ARGV* args;
 
-	settings->DynamicChannelCount = 0;
 	if ((freerdp_static_channel_collection_find(settings, "rdpsnd")) ||
 			(freerdp_dynamic_channel_collection_find(settings, "tsmf")))
 	{
@@ -2253,7 +2292,7 @@ int cameyo_packager_get(rdpSettings* settings, char* serverHost, int serverPort,
 			username = parse_json_token(buf, "\"username\":");
 			password = parse_json_token(buf, "\"password\":");
 			port = parse_json_token(buf, "\"port\":");
-			remoteapp = parse_json_token(buf, "\"remote-app\":");
+			remoteapp = parse_json_token(buf, "\"rdp-token\":");
 		}
 		close(fp);
 		free(buf);
@@ -2266,8 +2305,12 @@ int cameyo_packager_get(rdpSettings* settings, char* serverHost, int serverPort,
 		// Basics
 		settings->ServerPort = atoi(port);
 		settings->ServerHostname = hostname;
-		settings->Username = username;
-		settings->Password = password;
+		settings->Username = strdup(username);
+		settings->Password = strdup(password);
+		printf("Session : %s\n", remoteapp);
+		printf("Server  : %s\n", hostname);
+		printf("User    : %s\n", username);
+		printf("Pwd     : %s\n", password);
 
 		// RemoteApp
 		settings->RemoteApplicationProgram = remoteapp;
@@ -2320,10 +2363,6 @@ int cameyo_settings_parse_command_line_arguments(rdpSettings* settings, int argc
 	// Audio
 	settings->AudioPlayback = TRUE;
 
-	// Certificate
-	//settings->CertificateName = _strdup(arg->Value);
-	settings->IgnoreCertificate = TRUE;
-
 	/*// Gateway
 	settings->GatewayPort = atoi(&p[1]);
 	settings->GatewayHostname = (char*)malloc(length + 1);
@@ -2357,6 +2396,7 @@ int cameyo_settings_parse_command_line_arguments(rdpSettings* settings, int argc
 	settings->TlsSecurity = FALSE;
 	settings->NlaSecurity = TRUE;
 	settings->ExtSecurity = FALSE;
+	//settings->UseRdpSecurityLayer = TRUE;
 	//settings->DisableEncryption = TRUE;
 	settings->EncryptionMethods = ENCRYPTION_METHOD_40BIT | ENCRYPTION_METHOD_56BIT | ENCRYPTION_METHOD_128BIT | ENCRYPTION_METHOD_FIPS;
 	settings->EncryptionLevel = ENCRYPTION_LEVEL_CLIENT_COMPATIBLE;
