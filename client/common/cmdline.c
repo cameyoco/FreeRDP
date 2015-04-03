@@ -2292,7 +2292,7 @@ int cameyo_packager_get(rdpSettings* settings, char* serverHost, int serverPort,
 			username = parse_json_token(buf, "\"username\":");
 			password = parse_json_token(buf, "\"password\":");
 			port = parse_json_token(buf, "\"port\":");
-			remoteapp = parse_json_token(buf, "\"remote-app\":");
+			remoteapp = parse_json_token(buf, "\"rdp-token\":");
 		}
 		close(fp);
 		free(buf);
@@ -2305,8 +2305,12 @@ int cameyo_packager_get(rdpSettings* settings, char* serverHost, int serverPort,
 		// Basics
 		settings->ServerPort = atoi(port);
 		settings->ServerHostname = hostname;
-		settings->Username = username;
-		settings->Password = password;
+		settings->Username = strdup(username);
+		settings->Password = strdup(password);
+		printf("Session : %s\n", remoteapp);
+		printf("Server  : %s\n", hostname);
+		printf("User    : %s\n", username);
+		printf("Pwd     : %s\n", password);
 
 		// RemoteApp
 		settings->RemoteApplicationProgram = remoteapp;
@@ -2342,13 +2346,13 @@ int cameyo_settings_parse_command_line_arguments(rdpSettings* settings, int argc
 	if (optind != argc - 1)
 	{
 		fprintf(stderr, "Usage: %s [-u] [-p] [-s] pkgId\n", argv[0]);
-		exit(1);	
+		exit(1);
 	}
 
 	char* pkgId = argv[optind];
 	freerdp_client_print_version();
 	cameyo_packager_get(settings, "online.cameyo.com", 443, TRUE, "RdpPlay", NULL, NULL, pkgId);
-	
+
 	// Certificate
 	//settings->CertificateName = "winrap";//TBD
 	settings->IgnoreCertificate = TRUE; //TBD
@@ -2358,10 +2362,6 @@ int cameyo_settings_parse_command_line_arguments(rdpSettings* settings, int argc
 
 	// Audio
 	settings->AudioPlayback = TRUE;
-
-	// Certificate
-	//settings->CertificateName = _strdup(arg->Value);
-	settings->IgnoreCertificate = TRUE;
 
 	/*// Gateway
 	settings->GatewayPort = atoi(&p[1]);
@@ -2392,10 +2392,11 @@ int cameyo_settings_parse_command_line_arguments(rdpSettings* settings, int argc
 	settings->AutoReconnectionEnabled = arg->Value ? TRUE : FALSE;*/
 
 	// Security mode: standard RDP
-	settings->RdpSecurity = TRUE;
+	settings->RdpSecurity = FALSE;
 	settings->TlsSecurity = FALSE;
-	settings->NlaSecurity = FALSE;
+	settings->NlaSecurity = TRUE;
 	settings->ExtSecurity = FALSE;
+	//settings->UseRdpSecurityLayer = TRUE;
 	//settings->DisableEncryption = TRUE;
 	settings->EncryptionMethods = ENCRYPTION_METHOD_40BIT | ENCRYPTION_METHOD_56BIT | ENCRYPTION_METHOD_128BIT | ENCRYPTION_METHOD_FIPS;
 	settings->EncryptionLevel = ENCRYPTION_LEVEL_CLIENT_COMPATIBLE;
