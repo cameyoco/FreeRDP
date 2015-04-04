@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-FREERDP_API int cameyo_client_settings_parse_command_line(
+FREERDP_API int cameyo_client_settings_parse_command_line_arguments(
 	rdpSettings* settings, int argc, char** argv, BOOL allowUnknown);
 FREERDP_API int freerdp_client_settings_parse_command_line_arguments(
 	rdpSettings* settings, int argc, char** argv, BOOL allowUnknown);
